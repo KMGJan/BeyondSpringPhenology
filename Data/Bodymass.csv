@@ -1,0 +1,133 @@
+﻿Taxa,STAGE,SEXCO,Station,Jan-Mar,Apr-Jun,Jul-Sep,Oct-Dec
+Temora,AD,F,BY31,60,65,60,50
+Temora,AD,M,BY31,55,40,45,50
+Temora,AD,NS,BY31,57.5,52.5,52.5,50
+Temora,C1,NS,BY31,9,6,6,4
+Temora,C4,NS,BY31,18,15,15,14
+Temora,AD,F,BY5,60,65,40,50
+Temora,AD,M,BY5,55,55,45,45
+Temora,AD,NS,BY5,57.5,60,42.5,47.5
+Temora,C1,NS,BY5,9,6,6,6
+Temora,C4,NS,BY5,18,15,15,15
+Pseudocalanus,AD,F,BY31,50,45,50,55
+Pseudocalanus,AD,M,BY31,35,30,35,50
+Pseudocalanus,AD,NS,BY31,42.5,37.5,42.5,52.5
+Pseudocalanus,C1,NS,BY31,7,8,10,10
+Pseudocalanus,C4,NS,BY31,20,20,20,20
+Pseudocalanus,AD,F,BY5,50,45,50,55
+Pseudocalanus,AD,M,BY5,30,30,35,50
+Pseudocalanus,AD,NS,BY5,40,37.5,42.5,52.5
+Pseudocalanus,C1,NS,BY5,7,8,10,10
+Pseudocalanus,C4,NS,BY5,20,20,20,20
+Eurytemora,AD,F,BY31,25,50,25,25
+Eurytemora,AD,M,BY31,20,40,20,20
+Eurytemora,AD,NS,BY31,22.5,45,22.5,22.5
+Eurytemora,C1,NS,BY31,5,5,5,5
+Eurytemora,C4,NS,BY31,13,14,14,13
+Eurytemora,AD,F,BY5,25,50,25,25
+Eurytemora,AD,M,BY5,20,40,20,20
+Eurytemora,AD,NS,BY5,22.5,45,22.5,22.5
+Eurytemora,C1,NS,BY5,5,5,5,5
+Eurytemora,C4,NS,BY5,13,14,14,13
+Centropages,AD,F,BY31,55,50,45,50
+Centropages,AD,M,BY31,45,40,40,40
+Centropages,AD,NS,BY31,50,45,42.5,45
+Centropages,C1,NS,BY31,6,6,6,6
+Centropages,C4,NS,BY31,17,15,15,16
+Centropages,AD,F,BY5,55,50,45,50
+Centropages,AD,M,BY5,45,40,40,40
+Centropages,AD,NS,BY5,50,45,42.5,45
+Centropages,C1,NS,BY5,6,6,6,6
+Centropages,C4,NS,BY5,17,15,15,16
+Acartia tonsa,AD,F,BY31,35,35,35,35
+Acartia tonsa,AD,M,BY31,32,32,32,32
+Acartia tonsa,AD,NS,BY31,33.5,33.5,33.5,33.5
+Acartia tonsa,C1,NS,BY31,6,6,6,6
+Acartia tonsa,C4,NS,BY31,17,17,17,17
+Acartia tonsa,AD,F,BY5,35,35,35,35
+Acartia tonsa,AD,M,BY5,32,32,32,32
+Acartia tonsa,AD,NS,BY5,33.5,33.5,33.5,33.5
+Acartia tonsa,C1,NS,BY5,6,6,6,6
+Acartia tonsa,C4,NS,BY5,17,17,17,17
+Acartia,AD,F,BY31,20,25,22.5,22.5
+Acartia,AD,M,BY31,16.5,17.5,17.5,17.5
+Acartia,AD,NS,BY31,18.25,21.25,20,20
+Acartia,C1,NS,BY31,4.5,7,4.5,4.5
+Acartia,C4,NS,BY31,12,16,12,10.5
+Acartia,AD,F,BY5,20,20,22.5,22.5
+Acartia,AD,M,BY5,16.5,17.5,17.5,17.5
+Acartia,AD,NS,BY5,18.25,18.75,20,20
+Acartia,C1,NS,BY5,4.5,4.5,4.5,4.5
+Acartia,C4,NS,BY5,11,11,10.5,9.5
+Acartia longiremis,AD,F,BY31,20,20,20,20
+Acartia longiremis,AD,M,BY31,18,15,15,15
+Acartia longiremis,AD,NS,BY31,19,17.5,17.5,17.5
+Acartia longiremis,C1,NS,BY31,5,5,5,5
+Acartia longiremis,C4,NS,BY31,12,12,11,9
+Acartia longiremis,AD,F,BY5,20,20,20,20
+Acartia longiremis,AD,M,BY5,18,15,15,15
+Acartia longiremis,AD,NS,BY5,19,17.5,17.5,17.5
+Acartia longiremis,C1,NS,BY5,5,5,5,5
+Acartia longiremis,C4,NS,BY5,12,12,11,9
+Acartia bifilosa,AD,F,BY31,20,30,25,25
+Acartia bifilosa,AD,M,BY31,15,20,20,20
+Acartia bifilosa,AD,NS,BY31,17.5,25,22.5,22.5
+Acartia bifilosa,C1,NS,BY31,4,9,4,4
+Acartia bifilosa,C4,NS,BY31,12,20,13,12
+Acartia bifilosa,AD,F,BY5,20,20,25,25
+Acartia bifilosa,AD,M,BY5,15,20,20,20
+Acartia bifilosa,AD,NS,BY5,17.5,20,22.5,22.5
+Acartia bifilosa,C1,NS,BY5,4,4,4,4
+Acartia bifilosa,C4,NS,BY5,10,10,10,10
+Evadne,AD,F,BY31,30,30,30,30
+Evadne,AD,NS,BY31,30,30,30,30
+Evadne,JV,NS,BY31,10,10,10,10
+Evadne,NS,NS,BY31,20,20,20,20
+Evadne,AD,F,BY5,30,30,30,30
+Evadne,AD,NS,BY5,30,30,30,30
+Evadne,JV,NS,BY5,10,10,10,10
+Evadne,NS,NS,BY5,20,20,20,20
+Podon leuckartii,AD,F,BY31,25,25,25,25
+Podon leuckartii,AD,M,BY31,20,20,20,20
+Podon leuckartii,AD,NS,BY31,13,13,13,13
+Podon leuckartii,JV,NS,BY31,6,6,6,6
+Podon leuckartii,NS,NS,BY31,13,13,13,13
+Podon leuckartii,AD,F,BY5,25,25,25,25
+Podon leuckartii,AD,M,BY5,20,20,20,20
+Podon leuckartii,AD,NS,BY5,13,13,13,13
+Podon leuckartii,JV,NS,BY5,6,6,6,6
+Podon leuckartii,NS,NS,BY5,13,13,13,13
+Podon intermedius,AD,F,BY31,40,40,40,40
+Podon intermedius,AD,M,BY31,40,40,40,40
+Podon intermedius,AD,NS,BY31,40,40,40,40
+Podon intermedius,JV,NS,BY31,25,25,25,25
+Podon intermedius,NS,NS,BY31,40,40,40,40
+Podon intermedius,AD,F,BY5,40,40,40,40
+Podon intermedius,AD,M,BY5,40,40,40,40
+Podon intermedius,AD,NS,BY5,40,40,40,40
+Podon intermedius,JV,NS,BY5,25,25,25,25
+Podon intermedius,NS,NS,BY5,40,40,40,40
+Podon,AD,F,BY31,25,25,25,25
+Podon,AD,M,BY31,13,13,13,13
+Podon,AD,NS,BY31,13,13,13,13
+Podon,JV,NS,BY31,6,6,6,6
+Podon,NS,NS,BY31,20,20,20,20
+Bosmina,AD,F,BY31,15,15,15,45
+Bosmina,AD,M,BY31,7,7,7,15
+Bosmina,AD,NS,BY31,15,15,15,25
+Bosmina,JV,NS,BY31,2.5,2.5,2.5,7
+Bosmina,NS,NS,BY31,7,7,7,15
+Synchaeta,NS,NS,BY31,3,3,3,3
+Keratella,NS,NS,BY31,1.5,1.5,1.5,1
+Podon,AD,F,BY5,25,25,25,25
+Podon,AD,M,BY5,13,13,13,13
+Podon,AD,NS,BY5,13,13,13,13
+Podon,JV,NS,BY5,6,6,6,6
+Podon,NS,NS,BY5,20,20,20,20
+Bosmina,AD,F,BY5,15,15,15,45
+Bosmina,AD,M,BY5,7,7,7,15
+Bosmina,AD,NS,BY5,15,15,15,25
+Bosmina,JV,NS,BY5,2.5,2.5,2.5,7
+Bosmina,NS,NS,BY5,7,7,7,15
+Synchaeta,NS,NS,BY5,3,3,3,3
+Keratella,NS,NS,BY5,1.5,1.5,1.5,1.5

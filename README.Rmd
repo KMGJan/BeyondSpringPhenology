@@ -1,0 +1,267 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# README
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+In this R project, all the scripts for the manuscript *Climate driven shifts in phytoplankton phenology pose consequences for trophic coupling* are available.
+
+All the analyses were done with `r R.version[c("version.string")]` on the platform `r R.version[c("platform")]`.
+
+The scripts will also be made available on Zenodo at a later stage.
+
+# R scripts
+
+```{r, echo=TRUE, eval=FALSE}
+# 1. Download the data
+source("Scripts/DownloadData.R")
+
+# 2. Calculate the phenology metrics and the phyisical variables
+source("Scripts/PhenologyZP.R")
+source("Scripts/PhenologyPP.R")
+source("Scripts/Physical.R")
+
+# 3. Run the analysis
+source("Scripts/PlanktonSuccession.R")
+source("Scripts/Trends.R")
+source("Scripts/GLM.R")
+
+# 4. Run the supplementary analyses
+source("Scripts/Acartia.R")
+source("Scripts/DifferenceStations.R")
+source("Scripts/Nauplii.R")
+source("Scripts/FreqPhytoProp.R")
+```
+
+### DownloadData.R {#customscript0}
+
+This script can be used to download the phytoplankton and zooplankton time series data as well as the abiotic parameter.
+
+### PhenologyZP.R {#customscript1}
+
+In this script the *Zooplankton metrics* are calculated:
+
+* Imported raw abundance data from [Sharkweb](https://sharkweb.smhi.se/hamta-data/)
+* Biomass was calculated from individual bodymass based on location, life stage and sex according to the [HELCOM COMBINE manual](https://helcom.fi/action-areas/monitoring-and-assessment/monitoring-guidelines/combine-manual/)
+* Species were filtered to keep only the one with a good data coverage and excluding Nauplii
+* Density plot were performed based on the daily interpolation with a kernel smoothing
+* Weekly interpolation were made over the full time series with the Rpackage *zoo* and Week were retrieved using the package *lubridate*
+* Metric were calculated
+  + Peak timing using the center of gravity method
+  + Duration of the bloom using the cumulative biomass between the 25^th^ and 75^th^ percentile
+  + Magnitude of the bloom using the average of the biomass between the start and the end of the bloom
+  + A final dataset was saved combining all metric together [**"Output/Data/Weekly_Full_ZP.txt"**](#customdata1)
+
+### PhenologyPP.R {#customscript2}
+
+In this script the *Phytoplankton metrics* are calculated:
+
+* Imported raw biomass data from [Sharkweb](https://sharkweb.smhi.se/hamta-data/)
+* Species were filtered to keep only the ones with a good data coverage and exclude heterotroph organisms
+* Density plot were performed based on the daily interpolation with a kernel smoothing
+* Spring bloom was the sum of the phytoplankton between Week 5 and 2
+* Summer bloom was the sum of the phytoplankton between Week 22 and 37
+* Weekly interpolation were made over the full time series with the Rpackage *zoo* and DOY were retrieved using the package *lubridate*
+* Metric were calculated
+  + Peak timing using the center of gravity method
+  + Duration of the bloom using the cumulative biomass between the 25^th^ and 75^th^ percentile
+  + Magnitude of the bloom using the average of the biomass between the start and the end of the bloom
+* A final dataset was saved combining all metric together [**"Output/Data/Weekly_Full_PP.txt"**](#customdata2)
+* The **Table S3** is also produced
+
+### Physical.R {#customscript3}
+
+In this script the *Abiotic factor* are calculated:
+
+* Imported raw data from [Sharkweb](https://sharkweb.smhi.se/hamta-data/)
+* **Fig. S5** is produced
+* Weekly interpolation were made over the full time series with the Rpackage *zoo* and DOY were retrieved using the package *lubridate*
+* Monthly average are saved as [**"Output/Data/Abiotic.txt"**](#customdata3)
+
+### PlanktonSuccession.R
+
+In this script the **Fig. 1** is made:
+
+* Imported metrics and abiotic factor from 
+  + [**"Output/Data/Weekly_Full_ZP.txt"**](#customdata1)
+  + [**"Output/Data/Weekly_Full_PP.txt"**](#customdata2)
+  + [**"Output/Data/Abiotic.txt"**](#customdata3)
+* Panel a shows the water temperature between 0 to 20m for each month at each station (average and range min-max)
+* Panel b shows the salinity between 0 to 20m for each month at each station (average and range min-max)
+* Panels c and d show total and taxa specific dynamics
+  + The peak timing (average between 2008 and 2022)
+  + The start and end of the bloom (average between 2008 and 2022)
+* A map is also plotted at the end of the script
+
+### Trends.R
+
+In this script the *Trends* are analysed:
+
+* Imported data from 
+  + [**"Output/Data/Weekly_Full_ZP.txt"**](#customdata1)
+  + [**"Output/Data/Weekly_Full_PP.txt"**](#customdata2)
+  + [**"Output/Data/Abiotic.txt"**](#customdata3)
+* Trends are analysed with the Kendall test from the *Kendall* package and effect size was assessed using the Sen's slope from the *mblm* package for phytoplankton, zooplankton and seasonal salinity and temperature:
+  + Peak timing
+  + Peak initation
+  + Peak termination
+  + Peak magnitude
+* Coefficients of the trends for the phonological metrics are shown in **Fig. 4**
+* z-scores of the peak timing and magnitudes were calculated for all taxa and visualized across the year in **Fig. 3**
+
+### GLM.R {#customscript4}
+
+In this script the Generalized Linear Models are made:
+
+* Imported data from 
+  + [**"Output/Data/Weekly_Full_ZP.txt"**](#customdata1)
+  + [**"Output/Data/Weekly_Full_PP.txt"**](#customdata2)
+  + [**"Output/Data/Abiotic.txt"**](#customdata3)
+* Output of the GLM models are shown in **Fig. 5** and **Table S2**
+
+
+
+### Acartia.R
+
+In this script, adult of *Acartia* species are analysed following the same method as in [`PhenologyZP.R`](#customscript1) and [`GLM.R`](#customscript4) and **Fig. S4** is produced.
+
+### DifferenceStations.R {#custom4}
+
+In this script the *difference in timing and bloom magnitude* are analysed:
+
+* ANOVA are performed for zoo- and phytoplankton on Timing and *ln*-transformed Magnitude
+* Significant difference between stations are then tested using a *TukeyHSD* test
+* A dataset summarising all the statistics is created as [**Output/Data/Station_Differences.csv**](#customdata4)
+
+### Nauplii.R
+
+In this script **Fig. S3** is produced showing seasonal abundance dynamics of *Acartia*, *Pseudocalanus*, *Temora* and *Centropages* nauplii stages are plotted 
+
+### FreqPhytoProp.R
+
+In this script the **Fig. S1** and **Fig. S2** are produced:
+
+* For all three stations, based on:
+  + Zooplankton sampling
+  + Phytoplankton sampling
+  + Temperature sampling
+* Density plot showing the total phytoplankton and zooplankton biomass dynamics and the contribution of each taxa  
+
+---
+
+# Data
+
+First, the **raw data** were downloaded and are publicly available:
+
+  - Manually by going on [Sharkweb](https://sharkweb.smhi.se/hamta-data/)
+  - Using the shaRk package and the script `DownloadData`
+  
+The zooplankton bodymass were retrived from the [HELCOM COMBINE manual](https://helcom.fi/action-areas/monitoring-and-assessment/monitoring-guidelines/combine-manual/) and should have this structure to be compatible with the scripts:
+```{r, echo=FALSE}
+read.csv("Data/Bodymass.csv") |> str()
+```
+
+Where:
+
+* `Taxa` corresponds to the Taxa of interest
+* `STAGE` corresponds to the Stage of the organism (`AD`, `C1`, `C4`, `JV` or `NS`)
+* `SEXCO` corresponds to the sex code of the organism (`F`, `M`, `NS`)
+* `Station`corresponds to the station (`BY31`, `BY15` or `BY5`)
+* `Jan.Mar` corresponds to the bodymass in Winter
+* `Apr.Jun` corresponds to the bodymass in Spring
+* `Jul.Sep` corresponds to the bodymass in Summer
+* `Oct.Dec` corresponds to the bodymass in Autumn
+
+## Processed data
+
+In the folder **Output/Data** all the needed data can be found.
+
+1. Weekly_Full_ZP.txt
+2. Weekly_Full_PP.txt
+3. Abiotic.txt
+
+## Weekly_Full_ZP.txt {#customdata1}
+
+This dataset is produced at the end of the script [`Phenology_ZP.R](#custom1)
+
+It has this structure:
+
+```{r, echo=FALSE}
+read.delim("Output/Data/Weekly_Full_ZP.txt", sep = ";") |> str()
+```
+
+Where:
+
+* `Taxa`: Mesozooplankton taxa: *character*
+* `Year`: Year between 2008 and 2022, *integer*
+* `Station`: the three stations BY31, BY15, and BY5, *character*
+* `Group`: Group of mesozooplankton taxa: Copepoda, Cladocera, and Rotatoria, *character*
+* `Timing`: Bloom peak timing (Week #), *numeric*
+* `Maximum`: Bloom magnitude maximum ($\mu$g L^-1^), *numeric*
+* `Magnitude`: Bloom magnitude ($\mu$g L^-1^), *numeric*
+* `Start`: Start of the growing season, correspond to the 25^th^ percentile of the cumulative biomass (Week #), *numeric*
+* `End`: End of the growing season, correspond to the 75^th^ percentile of the cumulative biomass (Week #), *numeric*
+* `Middle`: Middle of the growing season, correspond to the 50^th^ percentile of the cumulative biomass (Week #), *numeric*
+* `Duration`: Time span between the Start and the End of the growing season (Week #), *numeric*
+
+
+
+## Weekly_Full_PP.txt {#customdata2}
+
+This dataset is produced at the end of the script [`Phenology_PP.R](#custom2)
+
+It has this structure:
+
+```{r, echo=FALSE}
+read.delim("Output/Data/Weekly_Full_PP.txt", sep = ";") |> str()
+```
+
+Where:
+
+* `Taxa`: Phytoplankton taxa, *See Table S3 for more information* *character*
+* `Year`: Year between 2008 and 2021, *integer*
+* `Station`: the three stations BY31, BY15, and BY5, *character*
+* `Group`: Group of phytoplankton taxa: only Phytoplankton, *character*
+* `Timing`: Bloom peak timing (Week #), *numeric*
+* `Maximum`: Bloom magnitude maximum ($\mu$gC L^-1^), *numeric*
+* `Magnitude`: Bloom magnitude ($\mu$gC L^-1^), *numeric*
+* `Start`: Start of the growing season, correspond to the 25^th^ percentile of the cumulative biomass (Week #), *numeric*
+* `End`: End of the growing season, correspond to the 75^th^ percentile of the cumulative biomass (Week #), *numeric*
+* `Middle`: Middle of the growing season, correspond to the 50^th^ percentile of the cumulative biomass (Week #), *numeric*
+* `Duration`: Time span between the Start and the End of the growing season (Week #), *numeric*
+
+## Abiotic.txt {#customdata3}
+
+This dataset is produced with the script [`Physical.R`](#custom3)
+
+It has this structure:
+
+```{r, echo=FALSE}
+read.delim("Output/Data/Abiotic.txt", sep = ";") |> str()
+```
+
+Where:
+
+* `Year`: Year of the sampling event, *integer*
+* `month`: Month of the sampling event. 1 corresponds to January, 2 to February, and so on, *integer*
+* `Parameter`: Parameter sampled. *character*
+  + Oxy_0.20: Integrated oxygen concentration between 0 and 20m depth, mL L^-1^
+  + SST: Sea surface temperature, °C
+  + Temp_0.20: Integrated temperature between 0 and 20m depth, °C
+  + Salinity: Integrated salinity between 0 and 20m depth
+  + Salinity_SSS: Sea surface salinity
+* `Station`: Station sampled, *character*
+* `Value`: value of the parameter, *numeric*
+* `n`: number of observation, *integer*
