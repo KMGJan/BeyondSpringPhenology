@@ -1,9 +1,11 @@
+#!/usr/bin/env Rscript
 ################################################################################
 #                                                                 18.08.2022   #
 #                            Kinlan M.G. Jan                                   #  
 #                           kinlan.jan@su.se                                   #
 #                                                                              #
 #                   Zooplankton Phenology metrics                              #
+#.                     Updated - 26.01.2024                                    #
 ################################################################################
 rm(list=ls())
 library(tidyverse)
@@ -15,8 +17,9 @@ library(shaRk)
 library(zoo)
 library(xts)
 library(reshape)
-################################################################################
-#1. Import the files
+library(timetk)
+
+#1. Import the files ----
 # Bodymass.csv has the bodymass of all zooplankton
 # (This can be found in the Sup. Table 1)
 Bodymass <- read.csv("Data/Bodymass.csv") |> 
@@ -38,8 +41,8 @@ Bodymass <- Bodymass |>
 
 # Abundance data of zooplankton
 zooplankton <- readRDS("Data/zooplankton_02Aug23.rds")
-################################################################################
-# 2. Filter and arrange the dataset zooplankton
+
+# 2. Filter and arrange the dataset zooplankton ----
 zp <- zooplankton |> 
   # Arrange the data taxonomy as the bodymass data
   mutate(dev_stage_code = ifelse(dev_stage_code == "AD",
@@ -162,14 +165,7 @@ names(zoo_table) <- c("Taxa",
                       "Value", 
                       "Depth")
 rm(Bodymass, zooplankton, zp)
-ggplot(data = zoo_table,
-       mapping = aes(x = SDATE,
-                     y = log(Value),
-                     col = as.character(Depth))) +
-  geom_point() +
-  facet_grid(Station ~
-               Taxa)
-# 3. Remove Pseudocalanus from the surface as they are not abundant
+# 3. Remove Pseudocalanus from the surface as they are not abundant ----
 zoo_table |>
   dplyr::filter(Taxa == "Pseudocalanus") |>
   ggplot(mapping = aes(x = SDATE, 
@@ -184,8 +180,8 @@ D30 <- subset(zoo_table, Depth == 30 & Taxa !='Pseudocalanus')
 D60 <- subset(zoo_table, Depth == 60 & Taxa =='Pseudocalanus')
 ztable1 <- rbind(D30, D60)
 rm(D30, D60, zoo_table)
-################################################################################
-# 4. Keep only the Taxa with high sampling frequencies
+
+# 4. Keep only the Taxa with high sampling frequencies ----
 ztable2 <- ztable1 |>
   # We can assign the group copepoda, cladocera, and rotatoria to the genus
   mutate(Group = ifelse(Genus %in% c("Acartia",
@@ -238,8 +234,8 @@ ztable2 |>
                                      "BY31"))) |>
   write.table("Output/Data/sup_fig1a.txt",
               sep = ";")
-################################################################################
-# 5. Data check
+
+# 5. Data check -----
 # But first some function for later:
 scale_x_month <- scale_x_continuous(breaks = seq(1, 12, 1),
                                     labels = month.abb)
@@ -311,154 +307,17 @@ ggplot(dGroup, aes(x=Month, y=Value, col=Group))+
   scale_x_month+
   theme_zp +
   facet_station
-################################################################################
-# 6. Daily interpolation over the full time serie
-dailyGenus <- ztable2 |>
-  # Sum per DATE per Taxa
-  group_by(SDATE,
-           Station,
-           Taxa) |>
-  summarise(Value = sum(Value))
-# Loop the interpolation per station
 
-df = data.frame()
-for (i in c("BY31", "BY5", "BY15")) {
-  
-  df_1 <- dailyGenus |> 
-    dplyr::filter(Station == i,
-                  year(SDATE) %in% 2008:2022)|>
-    
-    group_by(SDATE,Taxa)|>
-    summarise(Value=mean(Value, na.rm=T))|>
-    
-    dailyInterpretation(taxa="Taxa")|>
-    mutate(Station=i)
-  
-  df<- rbind(df_1, df)
-  
-  rm(df_1)
-}
-scale_x_DOY <- scale_x_month <- scale_x_continuous('Month',
-                                  breaks = seq(0, 365, 30.5),
-                                  limits = c(0, 366),
-                                  labels = month.abb,
-                                  expand = expand_scale(mult = c(0, 0), 
-                                                        add = c(0, 0))) 
-
-
-df |>
-  ggplot(mapping = aes(x = DOY,
-                       y = Abundance,
-                       col = Taxa)) +
-  geom_line() +
-  theme_zp +
-  scale_x_DOY +
-  facet_station
-################################################################################
-# 7. Smoothing the values with the density and plotting the dynamics
-
-CopInterp <- df |> 
-  mutate(Taxa = factor(Taxa, 
-                                    levels = c("Temora",
-                                               "Acartia", 
-                                               "Centropages",
-                                               "Eurytemora", 
-                                               "Pseudocalanus",
-                                               
-                                               "Bosmina",
-                                               "Podon",
-                                               "Evadne",
-                                               "Keratella",
-                                               "Synchaeta")),
-                      Select= ifelse(Taxa %in% c(
-                        "Acartia",
-                        "Centropages",
-                        "Pseudocalanus",
-                        "Temora",
-                        "Synchaeta"
-                      ), "Yes", ifelse(Taxa %in% c("Evadne", "Bosmina") & Station == "BY31", "Yes", "No"))) |>
-  dplyr::filter(Select %in% c("Yes")) |> ungroup() |>
-  spread(Taxa, Abundance) |> 
-  group_by(DOY, Station) |> 
-  mutate(Total = sum(Temora, Acartia, Centropages, Pseudocalanus, Bosmina, Evadne, Synchaeta, na.rm = T)) |> ungroup() |>
-  pivot_longer(4:11,
-               names_to = "Taxa",
-               values_to = "Abundance") |> na.omit()
-col_order = c("DOY", "Taxa", "Abundance", "Station", "Select")
-CopInterp <- CopInterp[, col_order]
-Density = data.frame()
-for( i in c("BY31", "BY5", "BY15")){
-  Interp <- CopInterp |>
-    dplyr::filter(Station == i)
-  
-  Density <- Interp[rep(row.names(Interp), Interp$Abundance), 1:2] |>
-    mutate(Station = i) |>
-    rbind(Density)
-  
-  rm(Interp)  
-}
-
-Density <- Density |>
-  mutate(Group = ifelse(Taxa %in% c("Acartia", 
-                                    "Temora",
-                                    "Centropages",
-                                    "Eurytemora",
-                                    "Acartia",
-                                    "Pseudocalanus"),
-                        "Copepoda",
-                        ifelse(Taxa %in%c("Bosmina",
-                                          "Evadne",
-                                          "Podon"),
-                               "Cladocera",
-                               "Rotatoria")))
-Density |> write.table("Output/Data/Density_zp.txt", sep = ";")
-Density |>
-  ggplot(mapping = aes(x = DOY, y = after_stat(count))) +
-  geom_density(alpha = 0.5,
-               size = 1.1,
-               fill = "black") +
-  
-  scale_y_continuous(expression(paste('Biomass'~('ug'~L^{-1}))),
-                     expand = expand_scale(mult = c(0, 0.1), 
-                                           add = c(0, 0))) +
-  facet_grid(Taxa ~ Station, scales = 'free_y') +
-  
-  theme(axis.title.x = element_text(hjust = 0.5),
-        axis.text.y = element_text(size = 9),
-        strip.text.y = element_text(size = 10, color = "black", face = "italic"),
-        legend.title = element_text(colour = "black", face = "plain"),
-        legend.text = element_text(colour = "black", face = "italic"),
-        panel.spacing = unit(0, "points")) +
-  
-  scale_x_month +
-  theme_zp
-
-
-
-
-# ---- 7. Interannual variation --------
-
+# 6. Interannual monthly variation ----
 d1 <- ztable2 |>
-  group_by(Year, 
-           Month,
-           SDATE,
-           Depth,
-           Station,
-           Taxa) |>
+  group_by(Year, Month, SDATE, Depth, Station, Taxa) |>
   summarise(Value = sum(Value)) |>
   
-  group_by(Year,
-           Month,
-           Station,
-           Taxa) |>
-  summarise(Value = mean(Value,
-                         na.rm = T))
+  group_by(Year, Month, Station, Taxa) |>
+  summarise(Value = mean(Value, na.rm = T))
 av <- d1 |>
-  group_by(Month,
-           Station,
-           Taxa) |>
-  summarise(Value = mean(Value,
-                         na.rm = T))
+  group_by(Month, Station,  Taxa) |>
+  summarise(Value = mean(Value,  na.rm = T))
   
 d1 |> 
   ggplot(mapping = aes(x = Month, 
@@ -480,9 +339,7 @@ d1 |>
 rm(d1, av)
 
 
-# ------- 8. Daily Interpolation by year --------
-
-library(timetk)
+# 7. Weekly Interpolation by year --------
 d1 <- 
   ztable2 |>
   
@@ -505,6 +362,8 @@ d1 <-
   mutate(Value = ifelse(Value == 0, NA, as.numeric(Value))) |> # Change back 0 to NA
   
   as_tibble()
+
+d1 |>  write_rds("Output/Data/zooplankton_sampling_before_interpolation.rds")
 
 allDates <- seq.Date(
   min(as.Date(d1$SDATE)),
@@ -552,6 +411,7 @@ for (i in unique(d1$Station)) {
   rm(d2, d3, d3zoo, d4, d5, d6)
 }
 
+d6_end |> write_rds("Output/Data/zooplankton_sampling_after_interpolation.rds")
 
 df_interpolated <- d6_end |>
   filter(Year > 2007,
@@ -559,8 +419,8 @@ df_interpolated <- d6_end |>
          Week < 52, Week >1)
 
 rm(d6_end, d1)
-################################################################################
-# 9. Bloom timing Center of gravity
+
+# 8. Bloom timing Center of gravity ----
 SumAb <- df_interpolated |>
   group_by(Year, Taxa, Station) |>
   summarise(Abundance = sum(Abundance))
@@ -569,8 +429,7 @@ SumWeekAb <- df_interpolated |>
   group_by(Year, Taxa, Station) |>
   summarise(WeekAb = sum(WeekAb))
 
-d8 <- merge(SumAb,
-            SumWeekAb)
+d8 <- merge(SumAb, SumWeekAb)
 
 peak <- d8 |>
   mutate(Timing = round(WeekAb/Abundance),
@@ -597,8 +456,8 @@ peak <- d8 |>
 #  write.table("./Output/ZP/Data/Peak.txt", 
 #              sep = ";")
 rm(d8, SumAb, SumWeekAb)
-################################################################################
-# 10. Bloom Duration
+
+# 9. Bloom Duration ----
 d9 <- df_interpolated |>
   group_by(Taxa, Year, Station) |>
   mutate(cumab = cumsum(Abundance))
@@ -625,7 +484,7 @@ d10 |>
   geom_hline(mapping = aes(yintercept = 75), lty = 2, col = "grey50") +
   theme(legend.position = "none")
 
-# 10.a. Interpolation of the quartile
+# 9.2. Interpolation of the quartile
 # because some do not have a value for the 25 and 75th quartile
 allQuart <- data.frame(Quart = seq(0, 100, 1))
 d6_end_2 = data.frame()
@@ -692,8 +551,8 @@ rm(day75, day50, day25, d10)
 #  write.table("./Output/ZP/Data/Duration.txt",
 #              sep = ";")
 rm(allQuart, CsumYr, d9)
-################################################################################
-# 11. Magnitude
+
+# 10. Magnitude -----
 magnitude <- df_interpolated |>
   merge(duration,
         by = c("Taxa", "Year", "Station")) |>
@@ -709,8 +568,8 @@ magnitude <- df_interpolated |>
 #  as.data.frame() |>
 #  write.table("./Output/ZP/Data/Magnitude.txt",
 #              sep = ";")
-################################################################################
-# 12. Merge all phenoloy variables
+
+# 11. Merge all phenoloy variables ----
 ZP <- peak |>
   merge(magnitude,
         by = c("Station", "Taxa", "Year")) |>
@@ -732,7 +591,7 @@ unique(ZP$Taxa)
 ZP |> 
   write.table("Output/Data/Weekly_Full_ZP.txt",
               sep = ";")
-################################################################################
-# 13. Empty the environment
+
+# 12. Empty the environment ----
 rm(list=ls())
 sessionInfo()

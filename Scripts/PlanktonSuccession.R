@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 rm(list=ls())
 ################################################################################
 #                                                                 18.08.2022   #
@@ -5,6 +6,7 @@ rm(list=ls())
 #                           kinlan.jan@su.se                                   #
 #                                                                              #
 #                         Plankton succession                                  #
+#                         Updated - 29.01.2024                                 #
 ################################################################################
 # Libraries
 library(dplyr)
@@ -45,10 +47,10 @@ se <- function(x) {
 
 df_new %>%
   group_by(Taxa, Station, Group) %>%
-  summarise(timing = round(mean(Timing),2),
-            seTiming = round(se(Timing), 2),
+  summarise(timing = round(mean(Timing),0),
+            seTiming = round(sd(Timing), 0),
             magnitude = round(mean(Magnitude),2),
-            seMagnitude = round(se(Magnitude),2)) %>%
+            seMagnitude = round(sd(Magnitude),2)) %>%
   ungroup()%>%
   filter(Taxa %in% c("Acartia", "Centropages", "Copepoda","Cladocera", "Bosmina", "Evadne", "Cyanobacteria", "Dinoflagellates", "Mesodinium", "Pseudocalanus", "Spring_bloom", "Spring_Diatoms","Synechococcales", "Summer_bloom", "Fall_Diatoms","Synchaeta", "Temora"))%>%
   mutate(Peak = paste(timing, seTiming, sep ="±"),
@@ -57,20 +59,20 @@ df_new %>%
   gather(Parameter, Value, 4:5)%>% 
   spread(Station, Value) %>%
   dplyr::select(Parameter, Group, Taxa, BY31, BY15, BY5) %>%
-  knitr::kable(caption = "mean ± se within station", digits = 2)%>%
+  knitr::kable(caption = "mean ± sd within station", digits = 2)%>%
   
   print()
 
 df_new %>%
   group_by(Taxa, Group) %>%
   summarise(timing = round(mean(Timing)),
-            seTiming = round(se(Timing)),
+            seTiming = round(sd(Timing)),
             magnitude = round(mean(Magnitude),1),
-            seMagnitude = round(se(Magnitude),1),
+            seMagnitude = round(sd(Magnitude),1),
             start = round(mean(Start)),
-            seStart = round(se(Start)),
+            seStart = round(sd(Start)),
             end = round(mean(End)),
-            seEnd = round(se(End))) %>%
+            seEnd = round(sd(End))) %>%
   ungroup()%>%
   filter(Taxa %in% c("Acartia", "Centropages", "Copepoda","Cladocera", "Cyanobacteria", "Dinoflagellates", "Mesodinium", "Pseudocalanus", "Spring_bloom", "Spring_Diatoms", "Summer_bloom","Synechococcales", "Fall_Diatoms","Synchaeta", "Temora"))%>%
   mutate(Peak = paste(timing, seTiming, sep ="±"),
@@ -78,7 +80,7 @@ df_new %>%
          Start = paste(start, seStart, sep = "±"),
          End = paste(end, seEnd, sep = "±"))%>%
   dplyr::select(Group, Taxa, Magnitude, Start,Peak, End)%>% 
-  knitr::kable(caption = "mean ± se across stations", digits = 2) %>%
+  knitr::kable(caption = "mean ± sd across stations", digits = 2) %>%
   
   print()
 ################################################################################
@@ -109,13 +111,14 @@ p_1_df <- df_new %>%
                              "Temora",
                              "Centropages",
                              "Acartia",
-                             "Evadne",
+
                              "Cladocera",
                              "Copepoda",
                              "Synechococcales",
                              "Cyanobacteria",
                              "Summer bloom",
                              "Other",
+                             "Evadne",
                              "Synchaeta",
                              "Mesodinium",
                              "Dinoflagellates", 
@@ -145,18 +148,12 @@ p_1_df <- df_new %>%
                      "Spring Diatoms")) %>%
   mutate(facet = ifelse(Taxa %in% c("Copepoda","Cladocera", "Spring bloom", "Summer bloom"), "a", "b"))
 
-pannel_c_d <- p_1_df %>%
-  mutate(Group = paste(Group, Station, sep="_"),
-         Group = factor(Group, 
-                        levels = c("Zooplankton_BY5",
-                                   "Zooplankton_BY15",
-                                   "Zooplankton_BY31",
-                                   "Phytoplankton_BY5",
-                                   "Phytoplankton_BY15",
-                                   "Phytoplankton_BY31")))%>% 
+Fig_3 <- p_1_df %>%
+  mutate(Station = factor(Station, levels = c("BY31", "BY15", "BY5"))) |> 
+  
   ggplot()+
   ##Point for the Median timing and the size relative to the magnitude:
-  geom_linerange(size=2,
+  geom_linerange(size=1,
                  mapping = aes(x = Taxa,
                                y = Med,
                                ymin = Min,
@@ -168,7 +165,7 @@ pannel_c_d <- p_1_df %>%
     size = Magnitude,
     x = Taxa,
     y = Med,
-    fill = Group),
+    fill = Station),
     alpha = 1,
     shape=21,
     stroke = 1,
@@ -177,8 +174,7 @@ pannel_c_d <- p_1_df %>%
   #Some aestetics, scales the fill and the sizes
   scale_size(breaks = c(50, 150, 250),
              range = c(3, 20)) +
-  scale_fill_manual(values = c( "#f6e8c3","#d8b365","#8c510a", 
-                                "#c7eae5","#5ab4ac", "#01665e"),
+  scale_fill_manual(values = c("#8da0cb","#fc8d62","#66c2a5"),
                     guide = "none") +
   scale_color_manual(values=c(1,1,1), guide="none")+
   scale_y_continuous(breaks = seq(0, 52, by = 4.333333),
@@ -222,12 +218,16 @@ pannel_c_d <- p_1_df %>%
         strip.text = element_blank()) +
   guides(fill = guide_legend(override.aes = list(size = 10)))+
   facet_grid(facet ~., scales = "free", space = "free")
-pannel_c_d
+Fig_3
+
+ggsave("Output/Figures/Fig_3.pdf", width = 12, height =7)
+
 ################################################################################
 # --- panel a ----
 
 panel_a <- temp %>%
   filter(Year <= 2022, Parameter %in% c("Temp_0.20")) %>%
+  
   mutate(Station = factor(Station,
                           levels = c("BY31", "BY15", "BY5")),
          Period = case_when(
@@ -248,14 +248,12 @@ panel_a <- temp %>%
                        y = Avg,
                        ymin = min,
                        ymax = max,
-                       fill = Station,
-                       shape = Parameter)) +
+                       fill = Station)) +
   geom_linerange(position = position_dodge(width = 20),
-                 size = 2) +
+                 size = 1) +
   geom_point(position = position_dodge(width = 20),
-             size = 5, stroke=1) +
+             size = 5, stroke=1, shape = 21) +
   scale_color_manual(values = c("grey50", 1)) +
-  scale_shape_manual(values = c(24,24))+
   scale_y_continuous(breaks = seq(0, 20, 5)) +
   scale_x_continuous(breaks = seq(0, 365, 30.5),
                      labels = months,
@@ -263,7 +261,7 @@ panel_a <- temp %>%
                      position = "top",
                      expand = expand_scale(mult = c(0, 0), 
                                            add = c(0, 0))) +
-  scale_fill_manual(values = c("#4d4d4d", "#999999", "#e0e0e0")) +
+  scale_fill_manual(values = c("#8da0cb","#fc8d62","#66c2a5")) +
   labs(x = NULL,
        y = "Temperature (°C)") +
   theme_classic() +
@@ -291,6 +289,7 @@ panel_a
 pannel_b <- 
   temp %>%
   filter(Year <= 2022, Parameter %in% c("Salinity")) %>%
+  
   mutate(Station = factor(Station,
                           levels = c("BY31", "BY15", "BY5")),
          Period = case_when(
@@ -311,14 +310,12 @@ pannel_b <-
                        y = Avg,
                        ymin = min,
                        ymax = max,
-                       fill = Station,
-                       shape = Parameter)) +
+                       fill = Station)) +
   geom_linerange(position = position_dodge(width = 20),
-                 size = 2) +
+                 size = 1) +
   geom_point(position = position_dodge(width = 20),
-             size = 5, stroke=1) +
+             size = 5, stroke=1, shape = 21) +
   scale_color_manual(values = c("grey50", 1)) +
-  scale_shape_manual(values = c(25,24))+
   scale_y_continuous(breaks = seq(0, 20, 1)) +
   scale_x_continuous(breaks = seq(0, 365, 30.5),
                      labels = months,
@@ -326,7 +323,7 @@ pannel_b <-
                      position = "top",
                      expand = expand_scale(mult = c(0, 0), 
                                            add = c(0, 0))) +
-  scale_fill_manual(values = c("#4d4d4d", "#999999", "#e0e0e0")) +
+  scale_fill_manual(values = c("#8da0cb","#fc8d62","#66c2a5")) +
   labs(x = NULL,
        y = "Salinity") +
   theme_classic() +
@@ -347,49 +344,9 @@ pannel_b <-
         legend.background = element_rect(fill = "transparent",
                                          color = "transparent"),
         axis.text.x = element_blank())
-pannel_b
-################################################################################
-# For the legend...
-legend_c_d <- pannel_c_d +
-  theme_classic() +
-  #Change the theme
-  theme(axis.ticks = element_line(color = "black"),
-        axis.line.x.bottom = element_blank(),
-        axis.text.y = element_text(face = "italic",
-                                   color = "black",
-                                   size=20,
-                                   hjust = .5,
-                                   vjust=.5),
-        panel.background = element_rect(fill = "transparent",
-                                        color = "transparent"),
-        panel.grid.major.x  = element_line(color = "grey70"),
-        legend.key.size = unit(1.5, 'cm'),
-        legend.text = element_text(size = 12),
-        legend.title=element_text(face = "bold",
-                                  size = 15),
-        legend.position = "right",
-        legend.background = element_rect(fill = "transparent",
-                                         color = "transparent"),
-        axis.text.x = element_text(face = "plain",
-                                   color = "black",
-                                   size=16,
-                                   hjust = .5,
-                                   vjust=.5)) +
-  guides(fill = guide_legend(override.aes = list(size = 15)))
-legend_final <- panel_a +   guides(fill = guide_legend(override.aes = list(size=15))) +  
-  legend_c_d +
-  
-  plot_layout(height = c(1, 3),
-              guides = 'collect') &
-  theme(legend.position = 'right',
-        legend.direction = 'horizontal',
-        legend.box.background = element_rect(fill = "transparent",
-                                             color =1),
-        legend.background = element_rect(fill = "transparent",
-                                         color = "transparent"),
-        plot.background = element_rect(fill = "transparent"))
-legend_final
-
+Fig_1_de <- panel_a/pannel_b
+Fig_1_de
+ggsave("Output/Figures/Fig_1_de.pdf", width = 10, height = 8)
 # Export the legend
 legend <- cowplot::get_legend(legend_final)
 # Combine pannel a, b and c
@@ -409,22 +366,8 @@ pannel_left <- left &
         plot.tag = element_text(size = 25))
 
 pannel_left
-################################################################################
-# Combine the 3 pannels
-final_fig<-cowplot::plot_grid(pannel_left,
-                              legend,
-                              rel_widths = c(5, 1),
-                              label_size = 25,
-                              label_fontface = "plain",
-                              align = "hv")
 
-final_fig
-print(final_fig)
-ggsave("Output/Figures/Fig1a-d.pdf",
-       width = 10,
-       height = 12)
-
-# --- panel_e ----
+# --- Map ----
 
 # Import dataframe with the stations coordinates
 
@@ -451,7 +394,8 @@ ggsave("Output/Figures/Fig1a-d.pdf",
 ###############################################################################
 #                           Otherwise start here                              #
 ###############################################################################
-Station <- readRDS("Data/Station.rds")
+Station <- readRDS("Data/Station.rds") |> 
+  mutate(Station = factor(Station, levels = c("BY31", "BY15", "BY5")))
 
 # Import dataframe with the polygones of the worlds
 world <- map_data("world")
@@ -513,9 +457,9 @@ ggplot() +
                           x = longitude + .5,
                           label = Station),
             size = 8) + 
-  scale_fill_manual(values = c("#999999",
-                               "#4d4d4d",
-                               "#e0e0e0"))
-ggsave("Output/Figures/Fig1e.pdf")
+  scale_fill_manual(values = c("#8da0cb","#fc8d62","#66c2a5"))
+ggsave("Output/Figures/Fig_1_a.pdf")
 rm(list=ls())
 sessionInfo()
+
+

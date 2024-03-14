@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 ################################################################################
 #                                                                 02.08.2023   #
 #                            Kinlan M.G. Jan                                   #  
@@ -45,6 +46,6 @@ saveRDS(phytoplankton, "Data/phytoplankton_02Aug23.rds")
 # Datatyp "Physical and Chemical"
 # Another solution is to use the code below:
 abiotic <- getSHARK("PhysicalChemical")
-saveRDS(abiotic, ".Data/abiotic_02Aug23.rds")
+saveRDS(abiotic, "Data/abiotic_02Aug23.rds")
 
 sessionInfo()

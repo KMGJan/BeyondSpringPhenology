@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 rm(list=ls())
 ################################################################################
 #                                                                 18.08.2023   #
@@ -5,6 +6,7 @@ rm(list=ls())
 #                           kinlan.jan@su.se                                   #
 #                                                                              #
 #                             Trend analysis                                   #
+#                        Updated - 24.01.2024                                  #
 ################################################################################
 library(mblm)
 library(Kendall)
@@ -59,6 +61,7 @@ for(a in unique(long_df$Parameter)){
         filter(Station == s)
       res <- mblm(z ~ Year,
                   data = df4)
+
       K <- MannKendall(df4$z)
       P = K$sl[1]
       pre <- predict(res,
@@ -67,6 +70,8 @@ for(a in unique(long_df$Parameter)){
                               p_trend = K$sl[1],
                               p_slope = summary(res)$coefficients[8],
                               slope = res$coefficients[2],
+                              conf_sup = confint(res,level = 0.95)[4],
+                              conf_inf = confint(res,level = 0.95)[2],
                               intercept = res$coefficients[1],
                               Year = unique(df4$Year),
                               Station = s,
@@ -76,14 +81,23 @@ for(a in unique(long_df$Parameter)){
     }
   }
 }
-prediction
-unique(prediction$Taxa)
-df_plot <-
+
+# Set the taxa order for the figure from first to reach the seasonal timing to last
+Taxa_levels <- long_df |> 
+  group_by(Taxa, Station, Parameter) |> 
+  summarise(Avg = mean(Value, na.rm = T)) |> 
+  ungroup() |> 
+  filter(Parameter %in% c("Timing"),
+         Station == "BY31") |> 
+  arrange(Avg)
+
+# Station BY31
+df_plot_updated <-
   prediction |> 
-  dplyr::select(p_trend, p_slope, slope, Station, Parameter, Taxa) |> 
+  dplyr::select(p_trend, p_slope, slope, conf_sup, conf_inf, Station, Parameter, Taxa) |> 
   unique() |> 
   filter(Parameter %in% c("Start", "End", "Magnitude", "Timing"),
-         Taxa %in% c("Temora", "Synchaeta", "Pseudocalanus", "Centropages", "Acartia", "Copepoda", "Evadne", "Cladocerans", "Bosmina", "Fall_Diatoms", "Summer_bloom", "Spring_Diatoms", "Spring_bloom", "Mesodinium", "Dinoflagellates", "Synechococcales","Cyanobacteria")) |> 
+         Taxa %in% c("Temora", "Synchaeta", "Pseudocalanus", "Centropages", "Acartia", "Copepoda", "Evadne", "Cladocera", "Bosmina", "Fall_Diatoms", "Summer_bloom", "Spring_Diatoms", "Spring_bloom", "Mesodinium", "Dinoflagellates", "Synechococcales","Cyanobacteria")) |> 
   mutate(facet = ifelse(Parameter == "Magnitude", "b", "a"),
          P_slope = case_when(
            p_slope <= 0.05 ~ "P < 0.05",
@@ -94,40 +108,30 @@ df_plot <-
            p_trend > 0.05 & p_trend <= 0.1 ~ "P < 0.1",
            p_trend > 0.1 ~ "P > 0.1"),
          Station = factor(Station, levels = c("BY31", "BY15", "BY5")),
-         Taxa = factor(Taxa, levels = c(
-           "Cladocerans","Bosmina","Evadne","Synchaeta", "Copepoda", "Acartia",  "Temora", "Pseudocalanus", "Centropages",     "Spring_bloom","Spring_Diatoms",  "Dinoflagellates","Mesodinium","Synechococcales", "Cyanobacteria","Summer_bloom","Fall_Diatoms"))
+         Taxa = factor(Taxa, levels = Taxa_levels$Taxa),
+         Parameter = factor(Parameter, levels = c("Start", "Timing", "End", "Magnitude"))
          )
-long_df |>ungroup()|> 
-  group_by(Taxa, Station, Parameter) |> 
-  summarise(mean = mean(Value)) |> 
-  ungroup() |> 
-  filter(Parameter == "Timing", Station == "BY31")
-df_plot|>
-  filter(Parameter == "Timing",
-         Station == "BY31")
+
+
+
 ggplot() +
   geom_hline(yintercept = 0) +
-  geom_bar(data = df_plot |> 
-             filter(facet == "b"),
-           mapping = aes(y = slope, x = Taxa, fill = P_trend),
-           stat = "identity",
-           width = .7,
-           col = "black") +
-  
-
-  
-  geom_point(data = df_plot |> 
-               filter(facet == "a"),
+  geom_errorbar(data = df_plot_updated |> 
+                  filter(Station == "BY31"),
+                mapping = aes(y = slope, ymin = conf_inf, ymax= conf_sup, x = Taxa),
+                width = 0) +
+  geom_point(data = df_plot_updated |> 
+               filter(Station == "BY31"),
              size = 4,
-             mapping = aes(y = slope, shape = Parameter, x = Taxa, fill = P_trend),
-             position = position_dodge2(width =.3)) +
-  scale_shape_manual(values = c(21, 22, 23))+
+             mapping = aes(y = slope, shape = Parameter, x = Taxa, fill = P_trend)) +
+
+  scale_shape_manual(values = c(21, 21, 21, 21))+
   scale_y_continuous() +
-  facet_grid(Station~.) +
+  facet_grid(Parameter~.) +
   theme_classic() +
   theme(panel.background = element_rect(color = "transparent",
                                         fill = "transparent"),
-        panel.grid.major.y = element_line(color = "grey70"),
+        panel.grid.major.y = element_blank(),
         axis.text.y = element_text(color = "black"),
         axis.text.x = element_text(angle = 45, 
                                    hjust = 1, 
@@ -139,27 +143,120 @@ ggplot() +
                                     face = "italic"),
         axis.text = element_text(color = "black"),
         axis.title = element_text(color = "black")) +
-  scale_fill_manual(values = c("#b2182b", "#ef8a62", "#fddbc7"), "") 
+  scale_fill_manual(values = c("#b2182b", "#ef8a62", "#fddbc7"), "")
+ggsave("Output/Figures/Fig_4_c.pdf", width = 5.5, height = 7.5)
 
-ggsave("Output/Figures/Fig4.pdf", width = 6, height = 7.5)
-pa <-
+# Suplementary figure: BY15
+Taxa_levels_BY15 <- long_df |> 
+  group_by(Taxa, Station, Parameter) |> 
+  summarise(Avg = mean(Value, na.rm = T)) |> 
+  ungroup() |> 
+  filter(Parameter %in% c("Timing"),
+         Station == "BY15") |> 
+  arrange(Avg)
+
+Sup_fig_3_c <-
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_errorbar(data = df_plot_updated |> 
+                  filter(Station == "BY15") |> 
+                  mutate(Taxa = factor(Taxa, levels = Taxa_levels_BY15$Taxa)),
+                mapping = aes(y = slope, ymin = conf_inf, ymax= conf_sup, x = Taxa),
+                width = 0) +
+  geom_point(data = df_plot_updated |> 
+               filter(Station == "BY15")|> 
+               mutate(Taxa = factor(Taxa, levels = Taxa_levels_BY15$Taxa)),
+             size = 4,
+             mapping = aes(y = slope, shape = Parameter, x = Taxa, fill = P_trend)) +
+  
+  scale_shape_manual(values = c(21, 21, 21, 21))+
+  scale_y_continuous() +
+  facet_grid(Parameter~.) +
+  theme_classic() +
+  theme(panel.background = element_rect(color = "transparent",
+                                        fill = "transparent"),
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(angle = 45, 
+                                   hjust = 1, 
+                                   vjust = 1),
+        legend.text = element_text(color = "black", 
+                                   face = "italic"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(color = "black",
+                                    face = "italic"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black")) +
+  scale_fill_manual(values = c("#b2182b", "#ef8a62", "#fddbc7"), "")
+
+# Suplementary figure: BY5
+Taxa_levels_BY5 <- long_df |> 
+  group_by(Taxa, Station, Parameter) |> 
+  summarise(Avg = mean(Value, na.rm = T)) |> 
+  ungroup() |> 
+  filter(Parameter %in% c("Timing"),
+         Station == "BY5") |> 
+  arrange(Avg)
+
+Sup_fig_3_f <-
+  ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_errorbar(data = df_plot_updated |> 
+                  filter(Station == "BY5") |> 
+                  mutate(Taxa = factor(Taxa, levels = Taxa_levels_BY5$Taxa)),
+                mapping = aes(y = slope, ymin = conf_inf, ymax= conf_sup, x = Taxa),
+                width = 0) +
+  geom_point(data = df_plot_updated |> 
+               filter(Station == "BY5")|> 
+               mutate(Taxa = factor(Taxa, levels = Taxa_levels_BY15$Taxa)),
+             size = 4,
+             mapping = aes(y = slope, shape = Parameter, x = Taxa, fill = P_trend)) +
+  
+  scale_shape_manual(values = c(21, 21, 21, 21))+
+  scale_y_continuous() +
+  facet_grid(Parameter~.) +
+  theme_classic() +
+  theme(panel.background = element_rect(color = "transparent",
+                                        fill = "transparent"),
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(angle = 45, 
+                                   hjust = 1, 
+                                   vjust = 1),
+        legend.text = element_text(color = "black", 
+                                   face = "italic"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(color = "black",
+                                    face = "italic"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black")) +
+  scale_fill_manual(values = c("#b2182b", "#ef8a62", "#fddbc7"), "")
+
+Sup_fig_3_c + Sup_fig_3_f + plot_layout(guides = "collect")
+ggsave("Output/Figures/Sup_Fig_S3_cf.pdf", width = 11, height = 7.5)
+
+################################################################################
+# Time - Series BY31
+Fig_4_a <-
   long_df |> 
-  mutate(Station = factor(Station, levels = c("BY31", "BY15", "BY5")),
+  mutate(Station = factor(Station, levels = c("BY31")),
          Group = ifelse(Group == "Phytoplankton", "Phytoplankton", "Zooplankton"),
          Taxa = factor(Taxa, levels = c(
-           "Cladocerans", "Bosmina","Evadne","Synchaeta","Copepoda", "Acartia",  "Temora", "Pseudocalanus", "Centropages",     "Spring_bloom","Spring_Diatoms",  "Dinoflagellates","Mesodinium", "Cyanobacteria","Synechococcales","Summer_bloom","Fall_Diatoms")),
+           "Spring_bloom","Spring_Diatoms",  "Dinoflagellates","Mesodinium","Summer_bloom","Synechococcales", "Cyanobacteria","Synchaeta","Copepoda","Acartia","Centropages","Temora","Pseudocalanus","Cladocera","Evadne","Bosmina","Fall_Diatoms")),
          facet = ifelse(Parameter == "Magnitude", "b", "a")) |> 
   filter(Parameter %in% c("Timing", "Magnitude"),
          Group == "Zooplankton",
-         Taxa %in% c("Temora", "Synchaeta", "Pseudocalanus", "Centropages", "Acartia", "Copepoda", "Evadne", "Cladocerans", "Bosmina", "Fall_Diatoms", "Summer_bloom", "Spring_Diatoms", "Spring_bloom", "Mesodinium", "Dinoflagellates", "Cyanobacteria","Synechococcales")) |> 
+         Station %in% c("BY31"),
+         Taxa %in% c("Temora", "Synchaeta", "Pseudocalanus", "Centropages", "Acartia", "Copepoda", "Evadne", "Cladocera", "Bosmina", "Fall_Diatoms", "Summer_bloom", "Spring_Diatoms", "Spring_bloom", "Mesodinium", "Dinoflagellates", "Cyanobacteria","Synechococcales")) |> 
   mutate(Parameter = factor(Parameter, levels = c("Timing", "Magnitude"))) |> 
   ggplot(mapping = aes(x = Year,
-                     y = z,
-                     fill = Station,
-                     col = Station)) +
-  geom_line(size = 1.5)+
-  
-  facet_grid(Taxa  ~  Parameter)+#, scale = "free") +
+                       y = z,
+                       fill = Parameter,
+                       col = Parameter)) +
+  geom_hline(yintercept = 0)+  
+  geom_line(size = 1)+
+
+  facet_grid(Taxa  ~  .)+#, scale = "free") +
   scale_y_continuous(breaks = seq(-2,2,2)) +
   #scale_shape_manual(values = c(21, 22)) +
   scale_color_manual(values = c("#8c510a","#d8b365",  "#f6e8c3")) +
@@ -167,7 +264,7 @@ pa <-
   theme_classic() +
   theme(panel.background = element_rect(color = "transparent",
                                         fill = "transparent"),
-        panel.grid.major.y = element_line(color = "grey70"),
+        panel.grid.major.y = element_blank(),
         axis.text.y = element_text(color = "black"),
         axis.text.x = element_text(angle = 45, 
                                    hjust = 1, 
@@ -182,7 +279,6 @@ pa <-
   
   labs(y = "z-scores",
        x = NULL)
-pa
 blank <- tibble(Taxa = c("Empty1"),
                 Year = 2009,
                 Station = "BY31",
@@ -191,24 +287,26 @@ blank <- tibble(Taxa = c("Empty1"),
                 Value = NA,
                 z = NA,
                 facet = "a")
-pb <-
+
+Fig_4_b <-
   long_df |> 
-  mutate(Station = factor(Station, levels = c("BY31", "BY15", "BY5")),
-         Group = ifelse(Group == "Phytoplankton", "Phytoplankton", "Zooplankton"),
+  mutate(Group = ifelse(Group == "Phytoplankton", "Phytoplankton", "Zooplankton"),
          Taxa = factor(Taxa, levels = c(
-           "Bosmina","Evadne","Synchaeta",  "Acartia",  "Temora", "Pseudocalanus", "Centropages",     "Spring_bloom","Spring_Diatoms",  "Dinoflagellates","Mesodinium", "Summer_bloom","Cyanobacteria","Synechococcales","Fall_Diatoms")),
+           "Spring_bloom","Spring_Diatoms",  "Dinoflagellates","Mesodinium","Summer_bloom","Synechococcales", "Cyanobacteria","Synchaeta","Copepoda","Acartia","Centropages","Temora","Pseudocalanus","Cladocera","Evadne","Bosmina","Fall_Diatoms")),
          facet = ifelse(Parameter == "Magnitude", "b", "a")) |> 
   filter(Parameter %in% c("Timing", "Magnitude"),
          Group == "Phytoplankton",
+         Station == "BY31",
          Taxa %in% c("Temora", "Synchaeta", "Pseudocalanus", "Centropages", "Acartia", "Copepoda", "Evadne", "Cladocerans", "Bosmina", "Fall_Diatoms", "Summer_bloom", "Spring_Diatoms", "Spring_bloom", "Mesodinium", "Dinoflagellates","Synechococcales", "Cyanobacteria")) |> 
   mutate(Parameter = factor(Parameter, levels = c("Timing", "Magnitude"))) |> as_tibble() |> rbind(blank) |> 
   ggplot(mapping = aes(x = Year,
                        y = z,
-                       fill = Station,
-                       col = Station)) +
-  geom_line(size = 1.5)+
+                       fill = Parameter,
+                       col = Parameter)) +
+  geom_hline(yintercept = 0)+  
+  geom_line(size = 1)+
   
-  facet_grid(Taxa  ~  Parameter)+#, scale = "free") +
+  facet_grid(Taxa  ~  .)+#, scale = "free") +
   scale_y_continuous(breaks = seq(-2,2,2))+
   #scale_shape_manual(values = c(21, 22)) +
   #scale_fill_manual(values = c("#8c510a","#d8b365",  "#f6e8c3")) +
@@ -216,7 +314,7 @@ pb <-
   theme_classic() +
   theme(panel.background = element_rect(color = "transparent",
                                         fill = "transparent"),
-        panel.grid.major.y = element_line(color = "grey70"),
+        panel.grid.major.y = element_blank(),
         axis.text.y = element_text(color = "black"),
         axis.text.x = element_text(angle = 45, 
                                    hjust = 1, 
@@ -231,11 +329,106 @@ pb <-
   
   labs(y = "z-scores",
        x = NULL)
-pb
-library(patchwork)
-pa+pb
-ggsave("Output/Figures/Fig3.pdf", height = 7, width = 9)
+Fig_4_a + Fig_4_b +plot_layout(guides = "collect")
+ggsave("Output/Figures/Fig_4_ab.pdf", width = 5.5, height = 7.5)
+# Sup Figure S3 : BY15 and BY5
+blank_BY15_5 <- tibble(Taxa = c("Empty1", "Empty2"),
+                       Year = 2009,
+                       Station = c("BY15", "BY5"),
+                       Group = "Zooplankton",
+                       Parameter = c("Timing", "Magnitude"),
+                       Value = NA,
+                       z = NA,
+                       facet = "a")
+Sup_Fig_S3_ad <-
+  long_df |> 
+  mutate(Station = factor(Station, levels = c("BY15", "BY5")),
+         Group = ifelse(Group == "Phytoplankton", "Phytoplankton", "Zooplankton"),
+         Taxa = factor(Taxa, levels = c(
+           "Spring_bloom","Spring_Diatoms",  "Dinoflagellates","Mesodinium","Summer_bloom","Synechococcales", "Cyanobacteria","Synchaeta","Copepoda","Acartia","Centropages","Temora","Pseudocalanus","Cladocera","Evadne","Bosmina","Fall_Diatoms")),
+         facet = ifelse(Parameter == "Magnitude", "b", "a")) |>
+  filter(Parameter %in% c("Timing", "Magnitude"),
+         Group == "Zooplankton",
+         Station %in% c("BY15", "BY5"),
+         Taxa %in% c("Temora", "Synchaeta", "Pseudocalanus", "Centropages", "Acartia", "Copepoda", "Evadne", "Cladocera", "Bosmina", "Fall_Diatoms", "Summer_bloom", "Spring_Diatoms", "Spring_bloom", "Mesodinium", "Dinoflagellates", "Cyanobacteria","Synechococcales")) |> 
+  mutate(Parameter = factor(Parameter, levels = c("Timing", "Magnitude"))) |> rbind(blank_BY15_5) |> 
+  ggplot(mapping = aes(x = Year,
+                       y = z,
+                       fill = Parameter,
+                       col = Parameter)) +
+  geom_hline(yintercept = 0)+  
+  geom_line(size = 1)+
+  
+  facet_grid(Taxa  ~  Station)+#, scale = "free") +
+  scale_y_continuous(breaks = seq(-2,2,2)) +
+  #scale_shape_manual(values = c(21, 22)) +
+  scale_color_manual(values = c("#8c510a","#d8b365",  "#f6e8c3")) +
+  #scale_color_manual(values = c("#8c510a","#d8b365",  "#f6e8c3")) +
+  theme_classic() +
+  theme(panel.background = element_rect(color = "transparent",
+                                        fill = "transparent"),
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(angle = 45, 
+                                   hjust = 1, 
+                                   vjust = 1),
+        legend.text = element_text(color = "black", 
+                                   face = "italic"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(color = "black",
+                                    face = "italic"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black")) +
+  
+  labs(y = "z-scores",
+       x = NULL)
 
+
+Sup_Fig_S3_be <-
+  long_df |> 
+  mutate(Group = ifelse(Group == "Phytoplankton", "Phytoplankton", "Zooplankton"),
+         Taxa = factor(Taxa, levels = c(
+           "Spring_bloom","Spring_Diatoms",  "Dinoflagellates","Mesodinium","Summer_bloom","Synechococcales", "Cyanobacteria","Synchaeta","Copepoda","Acartia","Centropages","Temora","Pseudocalanus","Cladocera","Evadne","Bosmina","Fall_Diatoms")),
+         facet = ifelse(Parameter == "Magnitude", "b", "a")) |> 
+  filter(Parameter %in% c("Timing", "Magnitude"),
+         Group == "Phytoplankton",
+         Station %in% c("BY15", "BY5"),
+         Taxa %in% c("Temora", "Synchaeta", "Pseudocalanus", "Centropages", "Acartia", "Copepoda", "Evadne", "Cladocerans", "Bosmina", "Fall_Diatoms", "Summer_bloom", "Spring_Diatoms", "Spring_bloom", "Mesodinium", "Dinoflagellates","Synechococcales", "Cyanobacteria")) |> 
+  mutate(Parameter = factor(Parameter, levels = c("Timing", "Magnitude"))) |> as_tibble() |> 
+  ggplot(mapping = aes(x = Year,
+                       y = z,
+                       fill = Parameter,
+                       col = Parameter)) +
+  geom_hline(yintercept = 0)+  
+  geom_line(size = 1)+
+  
+  facet_grid(Taxa  ~  Station)+#, scale = "free") +
+  scale_y_continuous(breaks = seq(-2,2,2))+
+  #scale_shape_manual(values = c(21, 22)) +
+  #scale_fill_manual(values = c("#8c510a","#d8b365",  "#f6e8c3")) +
+  scale_color_manual(values = c("#01665e","#5ab4ac","#c7eae5")) +
+  theme_classic() +
+  theme(panel.background = element_rect(color = "transparent",
+                                        fill = "transparent"),
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(angle = 45, 
+                                   hjust = 1, 
+                                   vjust = 1),
+        legend.text = element_text(color = "black", 
+                                   face = "italic"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(color = "black",
+                                    face = "italic"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black")) +
+  
+  labs(y = "z-scores",
+       x = NULL)
+Sup_Fig_S3_ad + Sup_Fig_S3_be +plot_layout(guides = "collect")
+ggsave("Output/Figures/Sup_Fig_S3_abde.pdf", width = 11, height = 7.5)
+
+################################################################################
 # --- Abiotic ----
 df <-
   read.table("Output/Data/Abiotic.txt",
@@ -270,10 +463,14 @@ for(a in unique(df$Parameter)){
       P = K$sl[1]
       pre <- predict(res,
                      df4)
+      confint(res, level = 0.95)[2]
+      confint(res, level = 0.95)[4]
       prediction = data.frame(predict = pre,
                               p_trend = K$sl[1],
                               p_slope = summary(res)$coefficients[8],
                               slope = res$coefficients[2],
+                              conf_inf = confint(res, level = 0.95)[2],
+                              conf_sup = confint(res, level = 0.95)[4],
                               intercept = res$coefficients[1],
                               Year = unique(df4$Year),
                               Station = s,
@@ -297,6 +494,8 @@ df_prediction <-
                 Parameter,
                 p_trend,p_slope,
                 slope,
+                conf_inf,
+                conf_sup,
                 intercept)  |>unique() |> 
   mutate(Station = factor(Station,
                           levels = c("BY31", "BY15", "BY5")),
@@ -304,30 +503,32 @@ df_prediction <-
                          levels = c("winter","spring", "summer", "fall"))) 
 df_new <- 
   df_prediction |>
-  dplyr::select(Station, season, Parameter, z, p_slope, p_trend, Year) |> 
+  dplyr::select(Station, season, Parameter, z, conf_inf, conf_sup, p_slope, p_trend, Year) |> 
   unique()
 prediction_new <- 
   df_prediction |> 
-  dplyr::select(Station, season, Parameter, slope, intercept, p_slope, p_trend) |> 
+  dplyr::select(Station, season, Parameter, slope,conf_inf, conf_sup, intercept, p_slope, p_trend) |> 
   unique()
-
-
-p1 <- 
-  ggplot() +
-  geom_line(data = df_new,
-            mapping = aes(x = Year, y = z, col = Station),
-            size = 1.5) +
+rm(s)
+################################################################################
+Fig2_a <- ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_line(data = df_new |> 
+              filter(Station == "BY31") |> 
+              mutate(Parameter = factor(Parameter, levels = c("Temp_0.20", "Salinity"))),
+            mapping = aes(x = Year, y = z, col = Parameter),
+            size = 2) +
   scale_y_continuous(breaks = seq(-2,2,2), limits = c(-2.8,2.8)) +
   scale_x_continuous(breaks = seq(2008,2020,4)) +
   
   
-  facet_grid(season~ Parameter) +
+  facet_grid( season~.) +
   scale_color_manual(values = c("#4d4d4d", "#999999", "#e0e0e0")) +
   scale_fill_manual(values = c("#4d4d4d", "#999999", "#e0e0e0")) +
   theme_classic() +
   theme(panel.background = element_rect(color = "transparent",
                                         fill = "transparent"),
-        panel.grid.major.y = element_line(color = "grey70"),
+        panel.grid.major.y = element_blank(),
         axis.text.y = element_text(color = "black"),
         axis.text.x = element_text(angle = 45, 
                                    hjust = 1, 
@@ -342,31 +543,177 @@ p1 <-
   
   labs(y = "z-scores",
        x = NULL)
-
-p2 <- 
-  prediction_new |> 
-  mutate(
-    P_trend = case_when(
-      p_trend <= 0.05 ~ "P < 0.05",
-      p_trend > 0.05 & p_trend <= 0.1 ~ "P < 0.1",
-      p_trend > 0.1 ~ "P > 0.1"),
-    Station = factor(Station, levels = c("BY31", "BY15", "BY5"))
-  )  |> 
-  ggplot(mapping = aes(x = Station, y = slope, fill = P_trend, col = P_trend, shape = Parameter))+
+Fig2_b <- prediction_new |> 
+  mutate(P_trend = case_when(p_trend <= 0.05 ~ "P < 0.05",
+                             p_trend > 0.05 & p_trend <= 0.1 ~ "P < 0.1",
+                             p_trend > 0.1 ~ "P > 0.1"),
+         Station = factor(Station, levels = c("BY31", "BY15", "BY5")),
+         Parameter = factor(Parameter, levels = c("Temp_0.20", "Salinity")))  |> 
+  filter(Station == "BY31") |> 
+  
+  ggplot(mapping = aes(x = Parameter, y = slope))+
   geom_hline(yintercept = 0) +
-  geom_point(col = "black", size = 4,
-             position = position_dodge2(width = .3)) +
-  facet_grid(season~1)+
-  scale_shape_manual(values = c(25,24)) +
-  scale_y_continuous(breaks = seq(0,.20,.1), limits = c(-0.0002,.22), expand = c(0,0))+
+  geom_errorbar(mapping = aes(ymin = conf_inf, ymax = conf_sup),
+                width = 0) +
+  geom_point(mapping = aes(fill = P_trend, col = P_trend),
+             col = "black", size = 6, shape = 21) +
+  facet_grid(season~.)+
+  scale_y_continuous(breaks = seq(-.2,.3,.1), limits = c(-0.12,.25), expand = c(0,0))+
   scale_fill_manual(values = c("#b2182b", "#ef8a62", "#fddbc7"), "") +    
   scale_color_manual(values = c("#b2182b", "#ef8a62", "#fddbc7"), "") +
   theme_classic() +
-  theme(
-    panel.grid.major.y = element_line(color = "grey70"),)
-#scale_fill_gradient2(low = "#67a9cf", mid = "#f7f7f7", high = "#CD4620")+
-cowplot::plot_grid(p1, p2, align = "hv", rel_widths = c(2,1.2))
-
-ggsave("Output/Figures/Fig2.pdf", height = 6.5, width =  9)
+  theme(panel.background = element_rect(color = "transparent",
+                                        fill = "transparent"),
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(angle = 45, 
+                                   hjust = 1, 
+                                   vjust = 1),
+        legend.text = element_text(color = "black", 
+                                   face = "italic"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(color = "black",
+                                    face = "italic"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black"))
+Fig2_a +Fig2_b + plot_layout(guides = "collect", widths  = c(1, 0.4))
+ggsave("Output/Figures/Fig_2.pdf", height = 6.5, width =  6)
+# Station BY15:
+Fig2_a_BY15 <- ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_line(data = df_new |> 
+              filter(Station == "BY15") |> 
+              mutate(Parameter = factor(Parameter, levels = c("Temp_0.20", "Salinity"))),
+            mapping = aes(x = Year, y = z, col = Parameter),
+            size = 2) +
+  scale_y_continuous(breaks = seq(-2,2,2), limits = c(-2.8,2.8)) +
+  scale_x_continuous(breaks = seq(2008,2020,4)) +
+  
+  
+  facet_grid( season~.) +
+  scale_color_manual(values = c("#4d4d4d", "#999999", "#e0e0e0")) +
+  scale_fill_manual(values = c("#4d4d4d", "#999999", "#e0e0e0")) +
+  theme_classic() +
+  theme(panel.background = element_rect(color = "transparent",
+                                        fill = "transparent"),
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(angle = 45, 
+                                   hjust = 1, 
+                                   vjust = 1),
+        legend.text = element_text(color = "black", 
+                                   face = "italic"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(color = "black",
+                                    face = "italic"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black")) +
+  
+  labs(y = "z-scores",
+       x = NULL)
+Fig2_b_BY15 <- prediction_new |> 
+  mutate(P_trend = case_when(p_trend <= 0.05 ~ "P < 0.05",
+                             p_trend > 0.05 & p_trend <= 0.1 ~ "P < 0.1",
+                             p_trend > 0.1 ~ "P > 0.1"),
+         Station = factor(Station, levels = c("BY31", "BY15", "BY5")),
+         Parameter = factor(Parameter, levels = c("Temp_0.20", "Salinity")))  |> 
+  filter(Station == "BY15") |> 
+  
+  ggplot(mapping = aes(x = Parameter, y = slope))+
+  geom_hline(yintercept = 0) +
+  geom_errorbar(mapping = aes(ymin = conf_inf, ymax = conf_sup),
+                width = 0) +
+  geom_point(mapping = aes(fill = P_trend, col = P_trend),
+             col = "black", size = 6, shape = 21) +
+  facet_grid(season~.)+
+  scale_y_continuous(breaks = seq(-.2,.3,.1), limits = c(-0.12,.25), expand = c(0,0))+
+  scale_fill_manual(values = c("#ef8a62", "#fddbc7"), "") +    
+  scale_color_manual(values = c("#ef8a62", "#fddbc7"), "") +
+  theme_classic() +
+  theme(panel.background = element_rect(color = "transparent",
+                                        fill = "transparent"),
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(angle = 45, 
+                                   hjust = 1, 
+                                   vjust = 1),
+        legend.text = element_text(color = "black", 
+                                   face = "italic"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(color = "black",
+                                    face = "italic"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black"))
+Fig2_a_BY15 +Fig2_b_BY15 + plot_layout(guides = "collect", widths  = c(1, 0.4))
+ggsave("Output/Figures/Sup_Fig_S2_ab.pdf", height = 6.5, width =  6)
+# Station BY5
+Fig2_a_BY5 <- ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_line(data = df_new |> 
+              filter(Station == "BY5") |> 
+              mutate(Parameter = factor(Parameter, levels = c("Temp_0.20", "Salinity"))),
+            mapping = aes(x = Year, y = z, col = Parameter),
+            size = 2) +
+  scale_y_continuous(breaks = seq(-2,2,2), limits = c(-2.8,2.8)) +
+  scale_x_continuous(breaks = seq(2008,2020,4)) +
+  
+  
+  facet_grid( season~.) +
+  scale_color_manual(values = c("#4d4d4d", "#999999", "#e0e0e0")) +
+  scale_fill_manual(values = c("#4d4d4d", "#999999", "#e0e0e0")) +
+  theme_classic() +
+  theme(panel.background = element_rect(color = "transparent",
+                                        fill = "transparent"),
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(angle = 45, 
+                                   hjust = 1, 
+                                   vjust = 1),
+        legend.text = element_text(color = "black", 
+                                   face = "italic"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(color = "black",
+                                    face = "italic"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black")) +
+  
+  labs(y = "z-scores",
+       x = NULL)
+Fig2_b_BY5 <- prediction_new |> 
+  mutate(P_trend = case_when(p_trend <= 0.05 ~ "P < 0.05",
+                             p_trend > 0.05 & p_trend <= 0.1 ~ "P < 0.1",
+                             p_trend > 0.1 ~ "P > 0.1"),
+         Station = factor(Station, levels = c("BY31", "BY15", "BY5")),
+         Parameter = factor(Parameter, levels = c("Temp_0.20", "Salinity")))  |> 
+  filter(Station == "BY5") |> 
+  
+  ggplot(mapping = aes(x = Parameter, y = slope))+
+  geom_hline(yintercept = 0) +
+  geom_errorbar(mapping = aes(ymin = conf_inf, ymax = conf_sup),
+                width = 0) +
+  geom_point(mapping = aes(fill = P_trend, col = P_trend),
+             col = "black", size = 6, shape = 21) +
+  facet_grid(season~.)+
+  scale_y_continuous(breaks = seq(-.2,.3,.1), limits = c(-0.12,.25), expand = c(0,0))+
+  scale_fill_manual(values = c("#b2182b", "#ef8a62", "#fddbc7"), "") +    
+  scale_color_manual(values = c("#b2182b", "#ef8a62", "#fddbc7"), "") +
+  theme_classic() +
+  theme(panel.background = element_rect(color = "transparent",
+                                        fill = "transparent"),
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(angle = 45, 
+                                   hjust = 1, 
+                                   vjust = 1),
+        legend.text = element_text(color = "black", 
+                                   face = "italic"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(color = "black",
+                                    face = "italic"),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black"))
+Fig2_a_BY5 +Fig2_b_BY5 + plot_layout(guides = "collect", widths  = c(1, 0.4))
+ggsave("Output/Figures/Sup_Fig_S2_cd.pdf", height = 6.5, width =  6)
+################################################################################
 rm(list=ls())
 sessionInfo()

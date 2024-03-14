@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+rm(list = ls())
 ################################################################################
 #                                                                 18.08.2023   #
 #                            Kinlan M.G. Jan                                   #  
@@ -5,7 +7,6 @@
 #                                                                              #
 #                     GLM with Normalised values                               #
 ################################################################################
-rm(list = ls())
 library(dplyr)
 library(ggplot2)
 library(tidyr)
@@ -17,7 +18,7 @@ library(rstatix)
 library(MASS)
 library(knitr)
 ################################################################################
-zp <- read.delim("Output/Data/Weekly_Full_ZP.txt",
+zoop <- read.delim("Output/Data/Weekly_Full_ZP.txt",
                  sep=";")
 
 abiotic <- read.delim("Output/Data/Abiotic.txt",
@@ -49,7 +50,8 @@ ABIOTIC <-
   as_tibble() %>% 
   filter(Parameter %in% c("T",
                           "BS",
-                          "S"),
+                          "S",
+                          "strat_index"),
          Year %in% 2008:2022) %>%
   group_by(Year, Station, Parameter_2) |> 
   summarise(Value = mean(Value, na.rm = T)) |> 
@@ -64,7 +66,7 @@ ABIOTIC <-
 
 ################################################################################
 #3. Process biotic variables
-zp <- zp %>%
+zp <- zoop %>%
   dplyr::select(Year,
                 Station,
                 Taxa,
@@ -120,7 +122,8 @@ df_final <- timing %>%
   merge(df_ab,
         by = c("Year",
                "Station")) %>%
-  mutate(Mismatch = Timing - Spring_bloom_Timing) %>%
+  mutate(Mismatch = Timing - Spring_bloom_Timing,
+         Mismatch_summer = Timing - Summer_bloom_Timing) %>%
   mutate(include = ifelse(Taxa %in% c("Acartia",
                                       "Temora",
                                       "Centropages",
@@ -136,29 +139,20 @@ df_final <- timing %>%
                                         "No")))) %>%
   filter(include == "Yes") %>%
   dplyr::select(- include)
+
 ################################################################################
-Mat <- df_final %>% 
-  filter(Taxa %in% c("Acartia",
-                     "Centropages",
-                     "Temora",
-                     "Pseudocalanus",
-                     "Synchaeta",
-                     "Evadne",
-                     "Bosmina")) %>%
+Mat <- df_final %>%
   dplyr::select(Year,
-                Taxa,
                 Timing,
                 Station,
                 Spring_bloom_Timing,
                 Spring_bloom_Magnitude,
                 T_spring, 
                 S_spring, 
-                Summer_bloom_Magnitude) %>% 
-  unique()%>%
-  spread(Taxa,
-         Timing) %>%
-  na.omit()
-Mat
+                Summer_bloom_Magnitude,
+                strat_index_spring) %>% 
+  unique()
+Mat |> str()
 panel.hist <- function(x, ...)
 {
   usr <- par("usr"); on.exit(par(usr))
@@ -181,12 +175,11 @@ panel.cor <- function(x, y, digits=2, prefix="", cex.cor)
   if(missing(cex.cor)) cex <- 0.8/strwidth(txt)
   text(0.5, 0.5, txt, cex = cex * abs(r), col = ifelse(r<0,"red","blue"))
 }
-print(pairs(Mat[,3:13], diag.panel = panel.hist,
+print(pairs(Mat |> dplyr::select(-Station), diag.panel = panel.hist,
             upper.panel = panel.smooth, lower.panel = panel.cor,
             main = "Timing"))
-
 ################################################################################
-
+library("regclass")
 NAMES <- c("Factor", "Estimate", "Error", "z.value", "p.value", "R2")
 outputa = data.frame()
 for(i in c("Evadne", "Bosmina", "Acartia", "Centropages", "Temora","Pseudocalanus", "Synchaeta")){
@@ -195,10 +188,11 @@ for(i in c("Evadne", "Bosmina", "Acartia", "Centropages", "Temora","Pseudocalanu
     arrange(Year, Station)
   if(i %in% c("Acartia", "Centropages",  "Pseudocalanus", "Synchaeta", "Temora")){
     mod <- glm(Timing ~
-                 T_spring + 
+                 T_spring +
                  Spring_bloom_Timing + Summer_bloom_Timing,#Spring_bloom_Magnitude,
                df,
                family = "gaussian")
+    print(VIF(mod))
   }
 
 
@@ -247,14 +241,16 @@ mat2 <- df_final %>%
                   Cyanobacteria_Magnitude,
                   Spring_bloom_Magnitude,
                   Mismatch,
+                  Mismatch_summer,
                   Taxa,
                   Magnitude,
+                  strat_index_spring,
                   S_spring,
                   T_spring)) %>%
   spread(Taxa,
          Magnitude)
 
-print(pairs(mat2[,c(2:12)], diag.panel = panel.hist,
+print(pairs(mat2[,c(2:13)], diag.panel = panel.hist,
             upper.panel = panel.smooth, lower.panel = panel.cor,
             main = "Magnitude"))
 
@@ -272,6 +268,7 @@ for(i in c("Bosmina", "Evadne","Pseudocalanus", "Acartia", "Centropages", "Temor
                  T_spring + S_spring,
                df,
                family = "gaussian")
+    print(VIF(mod))
 
     }
 
@@ -296,9 +293,6 @@ for(i in c("Bosmina", "Evadne","Pseudocalanus", "Acartia", "Centropages", "Temor
     mutate(Taxa = i) %>%
     rbind(outputb)
 }
-
-
-
 output_b <- outputb %>% 
   mutate(GLM = "Magnitude")
 
@@ -381,7 +375,7 @@ ggplot(data = df_combined,
   theme_classic() +
   theme(panel.background = element_rect(color = "transparent",
                                         fill = "transparent"),
-        panel.grid.major = element_line(color = "grey70"),
+        panel.grid.major = element_blank(),
         axis.text.y = element_text(color = "black",
                                    size = 13),
         axis.text.x = element_text(angle = 45, 
@@ -401,7 +395,7 @@ ggplot(data = df_combined,
   labs(y = "Standardized coefficients",
        x = NULL)
 
-ggsave("Output/Figures/Fig5.pdf",
+ggsave("Output/Figures/Fig_5.pdf",
        height = 8,
        width = 6)
 rm(list=ls())

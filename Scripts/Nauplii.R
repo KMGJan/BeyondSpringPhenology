@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 rm(list=ls())
 ################################################################################
 #                                                                 18.08.2023   #
@@ -160,6 +161,7 @@ d1 |>
              scales = "free")
 
 # Monthly average per Taxa
+library(PlanktonData)
 dGenus <- d1 |>
   filter(Taxa %in% c("Acartia", "Centropages", "Pseudocalanus", "Temora"))|>
   group_by(Month, 
@@ -167,120 +169,63 @@ dGenus <- d1 |>
            Genus, 
            Station,
            Taxa) |>
-  summarise(Value = mean(Value,
-                         na.rm = T))
+  summarise(avg = mean(Value,
+                         na.rm = T),
+            SE = se(Value))
 
-dGenus |>
-  ggplot(mapping = aes(x = Month, 
-                       y = Value,
-                       col = Taxa)) +
-  geom_point() +
-  geom_line() +
-  facet_station +
-  scale_x_month +
-  theme_zp
-
-# Daily interpolation over the full time serie ---------------------------------
-dailyGenus <- ztable2 |>
-  filter(Taxa %in% c("Acartia", "Centropages", "Pseudocalanus", "Temora"))|>
-  # Sum per DATE per Taxa
-  group_by(SDATE,
-           Station,
-           Taxa) |>
-  summarise(Value = sum(Value))
-
-df=data.frame()
-for (i in c("BY31", "BY5", "BY15")) {
-  
-  df_1 <- dailyGenus |> 
-    filter(Station == i,
-           year(SDATE) > 2007)|>
-    
-    group_by(SDATE,Taxa)|>
-    summarise(Value=mean(Value, na.rm=T))|>
-    
-    dailyInterpretation(taxa="Taxa")|>
-    mutate(Station=i)
-  
-  df<- rbind(df_1, df)
-  
-  rm(df_1)
-}
-scale_x_DOY <- scale_x_continuous('Month',
-                                  breaks = seq(0, 365, 30.5),
-                                  limits = c(0, 366),
-                                  labels = month.abb,
-                                  expand = expand_scale(mult = c(0, 0), 
-                                                        add = c(0, 0)))
-station = tibble(x= rep(17,3),
-                 y = rep(13,3),
-                 Station = c("BY31", "BY15", "BY5")) |>
-  mutate(Station = factor(Station, levels= c("BY31", "BY15", "BY5")))
-station
-bloom = tibble(x = c(mean(5*7,22*7), mean(22*7,37*5), mean(37*7,365)),
-               y = rep(13,3),
-               Station = c("BY5","BY5", "BY5"),
-               Bloom = c("Spring bloom", "Summer bloom", "Autumn bloom"))|>
-  mutate(Station = factor(Station, levels= c("BY31", "BY15", "BY5")))
-
-plot1<-df |>
-  mutate(Taxa = factor(Taxa,
-                       levels = c("Temora",
-                                  "Acartia",
-                                  "Centropages",
-                                  "Pseudocalanus")),
-         Station = factor(Station,
-                          levels = c("BY31", "BY15", "BY5"))) |>
-  ggplot(mapping = aes(x = DOY,
-                       y = Abundance)) +
-  geom_density(stat= "identity",
-               position = "stack",
-               aes(
-                   fill = Taxa)) +
-
-
-  scale_fill_manual(values = c("#8c510a","#bf812d","#dfc27d", "#f6e8c3")) +
-  labs(x = NULL,
-       y = expression("Nauplii Abundance (ind"~ L^-1~")"))+
-  scale_y_continuous(
-                   expand = expand_scale(mult = c(0, 0.05), 
-                                         add = c(0, 0))) +
-  facet_grid(Station ~.) +
-  theme_zp +
-  scale_x_DOY +
-  theme(axis.title.x = element_blank(),
+theme_FigS5 <- theme_classic() +
+  theme(panel.border = element_rect(fill = "transparent",
+                                    color = "black"),
+        axis.title.x = element_blank(),
         legend.title = element_blank(),
         legend.text = element_text(colour = "black",
-                                   face = "italic",
-                                   size = 15),
+                                   face = "plain",
+                                   size = 12),
         legend.position = "right",
         panel.spacing = unit(0, "points"),
-        strip.background = element_rect(colour = "transparent"),
+        strip.background = element_blank(),
         strip.text = element_blank(),
         axis.text = element_text(colour = "black",
-                                 size = 15,
-                                 hjust = -.1),
-        
+                                 size = 15),
+        axis.text.x = element_text(hjust = 0),
         axis.title = element_text(colour = "black",
-                                  size = 13),
+                                  size = 15),
         panel.background = element_rect(colour = "transparent",
-                                        fill = "transparent")) +
-  geom_vline(xintercept = c(5*7, 22*7, 37*7),
-             lty = "dotted") +
+                                        fill = "transparent"))
 
-  geom_text(station,
-            mapping = aes(x=x,
-                y=y,
-                label=Station), size =5)+
-  geom_text(bloom,
-            mapping = aes(x = x + 55,
-                          y = y,
-                          label = Bloom),
-            size = 5)
-print(plot1)
-plot1
-ggsave("Output/Figures/FigS3.pdf",
-       width = 8, height = 5)
+dGenus |>
+  mutate(Station = factor(Station, 
+                          levels= c("BY31","BY15", "BY5")),
+         Taxa = factor(Taxa, 
+                       levels = c("Synchaeta","Acartia", "Centropages", "Temora","Pseudocalanus","Evadne","Bosmina"))) |>
+  ggplot(mapping = aes(x = Month, 
+                       y = avg,
+                       #col = Taxa,
+                       fill = Taxa,
+                       #col = Taxa,
+                       ymin = avg-SE,
+                       ymax = avg+SE)) +
+  geom_line() +
+  geom_ribbon(alpha = .4)+
+  #geom_errorbar(width = 0)+
+  geom_point(shape = 21,
+             col = 1,
+             size = 3) +
+  scale_fill_manual(values = c("#dfc27d", "#f6e8c3", "#762a83", "#A5BEA4")) +
+  scale_color_manual(values = c("#dfc27d", "#f6e8c3", "#762a83", "#A5BEA4")) +
+  
+
+  facet_grid(.~Station)+
+  theme_FigS5 + 
+  scale_x_continuous(breaks = seq(1, 12, by = 1),
+                                    limits = c(1, 12),
+                                    labels = c(month.abb),
+                                    expand = expand_scale(mult = c(0, 0), 
+                                                          add = c(0.5, .5)))+
+  theme(legend.position = "bottom")
+
+ggsave("Output/Figures/Sup_Fig_S5.pdf",
+       width = 11, height = 4.5)
 
 rm(list=ls())
 sessionInfo()

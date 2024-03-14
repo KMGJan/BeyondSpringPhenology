@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 rm(list=ls())
 ################################################################################
 #                                                                 18.08.2023   #
@@ -22,79 +23,7 @@ library(shaRk)
 
 # Import the data
 physical <- readRDS("Data/abiotic_02Aug23.rds")
-################################################################################
-physical |> 
-  filter(station_name %in% c("BY5 BORNHOLMSDJ",
-                             "BY31 LANDSORTSDJ",
-                             "BY15 GOTLANDSDJ"),
-         parameter == "Nitrite+Nitrate NO2+NO3-N") |> 
-  mutate(SDATE = as.Date(visit_date,
-                         format = "%Y-%m-%d"),
-         day = format(SDATE, "%d"),
-         month = format(SDATE, "%m"),
-         year = format(SDATE, "%Y"),
-         Depth = as.numeric(sample_depth_m),
-         Station = ifelse(station_name == "BY31 LANDSORTSDJ",
-                          "BY31", 
-                          ifelse(station_name == "BY15 GOTLANDSDJ",
-                                 "BY15",
-                                 "BY5")),
-         Parameter = "Nitrogen") |> 
-  filter(year > 2007, year <= 2022,
-         Depth %in% c(0,
-                      5,
-                      10,
-                      15,
-                      20)) |> 
-  group_by(year,
-           month,
-           SDATE,
-           Depth,
-           Parameter,
-           Station) |> 
-  summarise(Value = mean(as.numeric(value),
-                         na.rm=T)) |> 
-  ungroup() |> 
-  group_by(year,
-           month,
-           SDATE,
-           Parameter,
-           Station) |>
-  summarise(Value = mean(Value,
-                         na.rm=T)) |> 
-  ungroup() |>
-  mutate(Station = factor(Station, levels = c("BY31", "BY15", "BY5"))) |> 
-  
-  ggplot(aes( x= month, y = Value, fill = Station)) +
-  geom_boxplot() +
-  
-  scale_fill_manual(values = c("#54278f",    
-                                         "#9e9ac8",
-                                         "#dadaeb")) +
-  theme_classic() +
 
-  theme(axis.title.x = element_blank(),
-        legend.title = element_blank(),
-        legend.text = element_text(colour = "black",
-                                   face = "plain",
-                                   size = 12),
-        legend.position = "right",
-        panel.spacing = unit(0, "points"),
-        strip.background = element_rect(colour = "transparent"),
-        strip.text = element_text(colour = "black",
-                                  size = 15),
-        axis.text = element_text(colour = "black",
-                                 size = 15),
-        axis.text.x = element_text(hjust = 0),
-        axis.title = element_text(colour = "black",
-                                  size = 15),
-        panel.background = element_rect(colour = "transparent",
-                                        fill = "transparent"),
-        panel.border = element_blank())
-
-ggsave("Output/Figures/FigS5.pdf",
-       height = 3,
-       width = 8)
 ################################################################################
 physical_TS <- physical |>
   
@@ -104,7 +33,8 @@ physical_TS <- physical |>
          parameter %in% c("Salinity CTD",
                           "Temperature CTD",
                           "Dissolved oxygen O2 bottle",
-                          "Dissolved oxygen O2 CTD")) |>
+                          "Dissolved oxygen O2 CTD", 
+                          "Nitrite+Nitrate NO2+NO3-N")) |>
   mutate(SDATE = as.Date(visit_date,
                          format = "%Y-%m-%d"),
          day = format(SDATE, "%d"),
@@ -133,10 +63,18 @@ Temp_020 <- physical_TS |>
                       15,
                       20)) |> 
   mutate(Parameter = "Temp_0-20")
+Temp_60 <- physical_TS |>
+  filter(Parameter == "Temperature CTD",
+         Depth %in% 60) |> 
+  mutate(Parameter = "Temp_60")
+Temp_060 <- physical_TS |>
+  filter(Parameter == "Temperature CTD",
+         Depth %in% 0:60) |> 
+  mutate(Parameter = "Temp_060")
 
 
 Temp <- rbind(SST,
-              Temp_020)
+              Temp_020, Temp_60, Temp_060)
 rm(SST, Temp_020)
 # Salinity
 Salinity_020 <-physical_TS |>
@@ -183,7 +121,15 @@ Oxy_020 <- physical_TS |>
                       20)) |> 
   mutate(Parameter = "Oxy_0-20")
 # combine salinity and temperature data
-Abiotic <- rbind(Temp, Salinity, Oxy_020)
+Nutrient_020 <- physical_TS |>
+filter(Parameter %in% c("Nitrite+Nitrate NO2+NO3-N"),
+       Depth %in% c(0,
+                    5,
+                    10,
+                    15,
+                    20)) |> 
+  mutate(Parameter = "Nutrient")
+Abiotic <- rbind(Temp, Salinity, Oxy_020, Nutrient_020)
 rm(Temp, Salinity)
 ################################################################################
 d1 <- Abiotic|> 
@@ -238,31 +184,7 @@ daily <- d1 |>
            FYEAR) |>
   summarise(Value = mean(Value,
                          na.rm = T))
-daily |> filter(Parameter == "Salinity_bottom", Year >2007) |> 
-  ggplot(aes(x = SDATE, y = Value))+
-  geom_point()+
-  facet_grid(.~Station)
-df = data.frame()
-for (i in unique(daily$Station)) {
-  df_1 <- daily |> 
-    filter(Station == i)
-  for(f in unique(daily$FYEAR)){
-    df2 <- df_1 |>
-      filter(FYEAR == f) |>
-      
-      group_by(SDATE,
-               Parameter) |>
-      summarise(Value = mean(Value,
-                             na.rm = T)) |> 
-      
-      dailyInterpretation(taxa = "Parameter") |>
-      mutate(Station = i,
-             FYEAR = f)
-    
-    df <- rbind(df2, df)
-    
-  }
-}
+
 
 ################################################################################
 library(timetk)
@@ -318,7 +240,6 @@ for (i in unique(d1$Station)) {
   rm(d2, d3, d3zoo, d4, d5, d6)
 }
 
-min(d6_end$DOY)
 d6_end <- d6_end |>
   filter(Year <= 2023,
          DOY != 1, DOY != 52, DOY != 53) |>
@@ -340,10 +261,15 @@ se <- function(x) {
   }
   return(out)
 }
-
-
 #################
-dPar <- d6_end |> 
+dPar <-
+  d6_end |> 
+  pivot_wider(names_from = Parameter, values_from = Value) |> 
+  mutate(strat_index = (SST-Temp_60)/Temp_060) |> 
+  dplyr::select(-c(Temp_060, Temp_60)) |> 
+  pivot_longer(5:12, values_to = "Value", names_to = "Parameter") |> 
+  
+  
   mutate(month = month(SDATE)) |>
   group_by(month, 
            Parameter,
@@ -371,6 +297,7 @@ dPar <- dPar |>
   mutate(Value = ifelse(Parameter == "Thermocline",
                         -Value,
                         as.numeric(Value)))
+
 dPar |>
   ggplot(mapping = aes(x = Year,
                        y = Value,
@@ -379,30 +306,7 @@ dPar |>
   facet_grid(Parameter ~ month,
              scales = "free")
 
-try <- dPar |>
-  group_by(Station,
-           month,
-           Parameter) |>
-  mutate(Avg = mean(Value)) |>
-  ungroup() |>
-  group_by(Station, 
-           month,
-           Year,
-           Parameter) |>
-  mutate(Anomalie = Value - Avg) |>
-  ungroup() |>
-  group_by(Station,
-           month,
-           Parameter) |>
-  mutate(cumSum = cumsum(Anomalie)) |>
-  ungroup() |>
-  filter(Station == "BY31")
 
-
-df <- dPar |>
-  filter(month %in% seq(1,
-                        12,
-                        1))
 # ---- Save the dataset ----
 dPar |>
   write.table("Output/Data/Abiotic.txt",

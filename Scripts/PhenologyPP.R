@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 rm(list=ls())
 ################################################################################
 #                                                                 18.08.2023   #
@@ -5,6 +6,7 @@ rm(list=ls())
 #                           kinlan.jan@su.se                                   #
 #                                                                              #
 #                   Phytoplankton Phenology Metrics                            #
+#                        Updated - 26.01.2024                                  #
 ################################################################################
 library(tidyverse)
 library(lubridate)
@@ -17,10 +19,10 @@ library(xts)
 library(reshape)
 library(grid)
 library(xts)
-################################################################################
+
 # Before we start create a folder in the Output folder
 # to save the phytoplankton outputs
-# 1. Import the files and some function
+# 1. Import the files and some function ----
 phytoplankton <- readRDS("Data/phytoplankton_02Aug23.rds")
 
 scale_x_month <- scale_x_continuous(breaks = seq(0, 365, 30.5),
@@ -31,8 +33,8 @@ scale_x_month <- scale_x_continuous(breaks = seq(0, 365, 30.5),
 theme_zp <- theme_classic() +
   theme(panel.border = element_rect(fill = "transparent"),
         axis.text = element_text(color = "black"))
-################################################################################
-# 2. Filter the data
+
+# 2. Filter the data ----
 phyto_table <- phytoplankton |>
   filter(Station %in% c("BY31 LANDSORTSDJ","BY5 BORNHOLMSDJ", "BY15 GOTLANDSDJ"),
          Year > 2006,
@@ -50,16 +52,6 @@ phyto_table <- phytoplankton |>
                                             "Cyanobacteria", ifelse(Phylum == "Cyanobacteria" & Order == "Synechococcales", "Synechococcales","Other")
                                             ))))) |>
   mutate(Station = ifelse(Station == "BY31 LANDSORTSDJ", "BY31",ifelse(Station == "BY15 GOTLANDSDJ", "BY15", "BY5")))
-phyto_table|>dplyr::select(SDATE, Station) |> unique() |> mutate(month = month(SDATE), day = day(SDATE), year = year(SDATE), Week = as.numeric(strftime(SDATE, format = "%V"))) |> unique() |> 
-  ggplot(aes(x= year, y = Week, fill = as.character(month)))+
-  geom_tile()+
-  geom_text(aes(label = Week)) +
-  facet_grid(~Station)
-dplyr::select(-SDATE) |> unique() |> filter(year != "2007") |> View()
-phyto_table |>
-  ggplot(aes(x=SDATE, y = log(Value), col=Depth))+
-  geom_point()+
-  facet_grid(Taxa~Station)
 D10 <- subset(phyto_table, Depth == 20 & Station %in% c('BY31') & Month != 11)
 D20 <- subset(phyto_table, Depth == 10 & Station != 'BY31')
 D20.2 <- subset(phyto_table, Depth == 10 & Station == "BY31" & Month%in% c(1,2,11,12))
@@ -77,177 +69,41 @@ ptable1 |>
                                             "Not_included_Dinoflagellates",
                                             as.character(Taxa)))))) |> unique() |> filter(Taxa =="Synechococcales") |>  dplyr::select(-Week) |> unique()
 rm(D10, D20)
-################################################################################
-# 3. Arrange the data to have taxa carbon content per day
+
+# 3. Arrange the data to have taxa carbon content per day ----
 d1 <- ptable1 |>
-  group_by(Year,
-           Month,
-           SDATE,
-           Taxa,
-           Station,
-           Depth) |>
+  group_by(Year, Month, SDATE, Taxa, Station, Depth) |>
   summarise(Value = sum(Value)) |>
   
-  group_by(Year,
-           Month,
-           Taxa,
-           Station) |>
-  summarise(Value = mean(Value, 
-                         na.rm = T))
+  group_by(Year, Month, Taxa, Station) |>
+  summarise(Value = mean(Value, na.rm = T))
 
-ptable1 |>
-  group_by(Month, Taxa, Station)|>
-  summarise(Value = mean(Value, na.rm=T)) |>
-  ggplot(mapping = aes(x = Month,
-                       y = Value,
-                       col = Taxa)) +
-  geom_point()+
-  geom_line()+
-  facet_grid(.~Station)
-
+# 4. Save the data for the Sup. Fig S1 ----
 ptable1 |> 
-  group_by(Year,
-           Month,
-           SDATE,
-           Station) |>
+  group_by(Year, Month, SDATE, Station) |>
   summarise(Value = sum(Value))|>
-  group_by(Year,
-           Month,
-           Station)|>
+  
+  group_by(Year, Month, Station)|>
   summarise(n = n()) |>
   
   mutate(Station = factor(Station,
-                          levels = c("BY5",
-                                     "BY15",
-                                     "BY31"))) |>
-  write.table("Output/Data/sup_fig1b.txt",
-              sep = ";")
+                          levels = c("BY5", "BY15", "BY31"))) |>
+  write.table("Output/Data/sup_fig1b.txt", sep = ";")
 
-
-dailyT <- ptable1 |>
-  group_by(SDATE,
-           Taxa,
-           Station,
-           Depth) |>
-  summarise(Value = sum(Value)) |>
-  
-  group_by(SDATE,
-           Taxa,
-           Station) |>
-  summarise(Value = mean(Value, 
-                         na.rm = T))
-################################################################################
-# 4. Daily interpolation over the full time serie
-df = data.frame()
-for (i in unique(dailyT$Station)) {
-  df <- dailyT |> 
-    filter(Station == i,
-           year(SDATE) > 2007) |>
-    group_by(SDATE, Taxa) |>
-    summarise(Value = mean(Value,
-                           na.rm=T)) |>
-    dailyInterpretation(taxa = "Taxa") |>
-    mutate(Station = i)|>
-    rbind(df)
-}
-df
-df |>
-  ggplot(aes(x=Week, y=Abundance, col=Taxa))+
-  geom_line()+
-  facet_grid(Station~., scales="free")
-
-################################################################################
-# 5. Plot the smoothed dynamics
-Blooms <- data.frame(
-  x = c(mean(c(42, 150)), 
-             mean(c(151, 258))),
-  y = 170,
-  Station = "BY31",
-  label = c("Spring bloom", "Summer bloom")) |>
-  transform(Station = factor(Station,
-                             levels = c("BY31", "BY5")))
-df_try <- df |>
-  group_by(Station, DOY)|>
-  mutate(Total = sum(Abundance))|>
-  spread(Taxa, Abundance) |> 
-  gather("Taxa", "Abundance", 3:9) |>
-  dplyr::select(DOY, Taxa, Abundance, Station)
-
-Density = data.frame()
-for( i in unique(df$Station)){
-  Interp <- df_try|>
-    filter(Station == i)
-  
-  Density <- Interp[rep(row.names(Interp), Interp$Abundance), 1:2] |>
-    mutate(Station = i)|>
-    rbind(Density)
-}
-Density |> 
-  filter(Taxa !="Total") |>
-  transform(Station = factor(Station, 
-                             levels= c("BY31","BY15", "BY5")),
-            Taxa = factor(Taxa, 
-                          levels = c("Other",
-                                     "Mesodinium",
-                                     "Cyanobacteria",
-                                     "Diatoms",
-                                     "Dinoflagellates", "Synechococcales"))) |>
-  ggplot(mapping = aes(x = DOY,
-                       y =after_stat(count))) +
-  geom_density(mapping = aes(col = Taxa, 
-                             fill = Taxa),
-               alpha = 1,
-               size = 1.1,
-               position="stack") +
-  scale_color_manual(values = c("black", rep('transparent', 5))) +
-  scale_fill_manual(values = c("#cccccc",
-                               "#636363",
-                               "#78c679",
-                               "#d9f0a3",
-                               "#006837",
-                               "black")) +
-  
-  scale_y_continuous(expression(paste('Carbon content'~('ug'~L^{-1}))),
-                     expand = expand_scale(mult = c(0, 0.1), 
-                                           add = c(0, 0))) +
-  facet_grid(Station~.) +
-  theme_zp +   scale_x_month +
-
-  geom_vline(xintercept = c(5*7, 22*7),
-             lty = "dotted") +
-  geom_vline(xintercept = c(37*7),
-             lty = "dotted") +
-  geom_text(data = Blooms,
-            mapping = aes(x = x,
-                          y = y,
-                          label = label),
-            size = 6)
-################################################################################
-
-Density |> write.table("Output/Data/Density_pp.txt", sep = ";")
-################################################################################
-# 6. Visualise the interannual variability
+# 5. Visualise the interannual monthly variability ----
 d1 <- ptable1 |>
-  group_by(Year,
-           Month,
-           SDATE,
-           Taxa,
-           Station,
-           Depth) |>
+  group_by(Year, Month, SDATE, Taxa, Station, Depth) |>
   summarise(Value = sum(Value)) |>
-  group_by(Year,
-           Month, 
-           Taxa, 
-           Station) |>
-  summarise(Value = mean(Value, 
-                         na.rm = T))
+  
+  group_by(Year, Month, Taxa, Station) |>
+  summarise(Value = mean(Value, na.rm = T))
+
 av <- d1 |>
   group_by(Month, Taxa, Station) |>
-  summarise(Value = mean(Value,
-                         na.rm = T))
+  summarise(Value = mean(Value, na.rm = T))
 
 d1 |> ggplot(mapping = aes(x = Month,
-                                  y = Value)) +
+                           y = Value)) +
   geom_line(mapping = aes(colour = factor(Year)),
             size = 0.3) +
   geom_point(mapping = aes(colour = factor(Year))) +
@@ -257,8 +113,8 @@ d1 |> ggplot(mapping = aes(x = Month,
                           y = Value), 
             size = 1.5)
 rm(av, d1)
-################################################################################
-# 7. Interpolate the data daily
+
+# 6. Interpolate the data weekly -----
 library(timetk)
 d1 <- ptable1 |>
   group_by(SDATE,
@@ -284,6 +140,9 @@ d1 <- ptable1 |>
 
   as.data.frame()
 
+# Export the dataset for additional analyses --> see Additional_Analyses.R
+d1 |> 
+  write_rds("Output/Data/Phytoplankton_before_interpolation.rds")
 
 allDates <- seq.Date(
   min(as.Date(d1$SDATE)),
@@ -331,13 +190,15 @@ for (i in unique(d1$Station)) {
   rm(d2, d3, d3zoo, d4, d5, d6)
 }
 
-d6_end <- d6_end |>
+# 7. And save the weekly interpolated data ----
+d6_end <-
+  d6_end %T>%
+  write_rds("Output/Data/Phytoplankton_after_interpolation.rds") %>%
   dplyr::filter(Year > 2007,
                 Year < 2023,
                 Week < 52, Week >1)
-unique(d6_end$Taxa)
-################################################################################
-# 8. And save the daily interpolated data
+
+# 8. Add spring blooms/summer blooms ----
 dseason <- d6_end |>
   filter(Year > 2007) |>
   mutate(Season = ifelse(Week >= 5 & Week <= 22,
@@ -373,13 +234,13 @@ df_interpolated <- d6_end |>
   filter(Taxa != "Diatoms",
          Taxa != "Not_included_Dinoflagellates") |>
   rbind(dseason1)
+
 # if you want to save this dataset, run the 3 lines below
 #df_interpolated |>
 #  write.table("./Output/PP/Data/daily_interpolation.txt", 
 #              sep = ";")
 
-################################################################################
-# 9. Peak Timing by center of gravity
+# 9. Peak Timing by center of gravity ----
 SumAb <- df_interpolated |>
   group_by(Year, Taxa, Station, Season)|>
   summarise(Abundance = sum(Abundance))
@@ -413,8 +274,8 @@ peak |>
   coord_flip()+
   labs(title = "Seasonal peak",
        x = "Taxa")
-################################################################################
-# 10. Bloom Duration
+
+# 10. Bloom Duration -----
 d9 <- df_interpolated |>
   filter(Taxa != "Diatoms") |>
   #filter(Season == "Growing_season") |>
@@ -450,9 +311,9 @@ d10 |>
              lty = 2,
              col = "grey50") +
   theme(legend.position = "none")
-###########################
+
 # Interpolation of the quartile
-# Beacuse some do not have a value for the 25 and 75th quartile
+# Because some do not have a value for the 25 and 75th quartile
 allQuart <- data.frame(Quart = seq(0, 100, 1))
 
 d6_end_2 = data.frame()
@@ -509,8 +370,7 @@ duration <- day25 |>
 #  write.table("./Output/PP/Data/Duration.txt",
 #              sep=";")
 
-################################################################################
-# 11. Bloom Magnitude
+# 11. Bloom Magnitude ----
 magnitude <- df_interpolated |>
   dplyr::select( - Season)|>
   merge(duration,
@@ -527,9 +387,9 @@ magnitude <- df_interpolated |>
 #magnitude |>
 #  write.table("./Output/PP/Data/Magnitude.txt",
 #              sep = ";")
-rm(Density, df_interpolated, theme_zp, allDates, ptable1, day50)
-################################################################################
-# 12. Merge all and empty the environment
+rm(df_interpolated, theme_zp, allDates, ptable1, day50)
+
+# 12. Merge all and empty the environment ----
 Full_pp <- duration |>
   merge(peak,
         by = c("Year", "Taxa", "Station")) |>
