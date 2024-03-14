@@ -13,6 +13,9 @@ are available.
 All the analyses were done with R version 4.1.1 (2021-08-10) on the
 platform x86_64-apple-darwin17.0.
 
+Data and scripts are also stored on Zenodo
+<https://zenodo.org/records/10708263>
+
 # R scripts
 
 ``` r
@@ -183,6 +186,12 @@ First, the **raw data** were downloaded and are publicly available:
 
 - Manually by going on [Sharkweb](https://sharkweb.smhi.se/hamta-data/)
 - Using the shaRk package and the script `DownloadData`
+
+Note that data were downloaded using the
+[shaRk](https://github.com/andreasnovotny/shaRk) Rpackage for this
+analysis. If the data are downloaded throughout the
+[Sharkweb](https://sharkweb.smhi.se/hamta-data/), make sure to update
+the headers accordingly.
 
 The zooplankton bodymass were retrived from the [HELCOM COMBINE
 manual](https://helcom.fi/action-areas/monitoring-and-assessment/monitoring-guidelines/combine-manual/),

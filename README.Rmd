@@ -20,6 +20,8 @@ In this R project, all the scripts for the manuscript *Plankton blooms over the 
 
 All the analyses were done with `r R.version[c("version.string")]` on the platform `r R.version[c("platform")]`.
 
+Data and scripts are also stored on Zenodo https://zenodo.org/records/10708263
+
 # R scripts
 
 ```{r, echo=TRUE, eval=FALSE}
