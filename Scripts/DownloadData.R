@@ -38,7 +38,7 @@ saveRDS(phytoplankton, "Data/phytoplankton_02Aug23.rds")
 
 ################################################################################
 #                                                                              #
-#                         ---- Phytoplankton ----                              #
+#                       ---- Abiotic Factors ----                              #
 #                                                                              #
 ################################################################################
 # Physical data can be downloaded manually on
